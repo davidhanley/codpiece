@@ -1,0 +1,56 @@
+
+The core database:
+
+  Hash codes are now simply random, and could simply be suppled by a random number 
+generator, but in the future we may desire to compute efficient hamming hash codes,
+and stable hash codes can aid in debugging, so the slight bit of extra code to store
+the zoebist hash codes in the database are worth it.  
+
+  Opening book.
+
+  The opening book could concievably be a lot of code in a chess program, especially if 
+one is to do it efficiently.  Since we want to both use only a small amount of code, and
+also be efficient, it makes sense to farm this out to a library.  
+
+SQLite works very well for this purpose.  Since each piece has a 'glyph' text
+representation associated with it, it is trivial to turn the board into a string, 
+and search the database for moves associated with it.  The schema is this
+
+table book_positions ( id integer primary key , board string )
+table book_moves ( id integer , move string )
+
+the position and move tables can be joined by their common ID like so:
+
+select * from book_positions inner join book_moves using(id)
+
+by adding a where clause and an "order by random() limit 1" clause, you can find 
+a random book move for the current position. Since the schema does allow for duplicates,
+and popular position/move combinations in the source book do result in duplicates, 
+the random selection is biased towards popular moves.  
+
+  The brain database:
+
+  A typical chess prgoram will often find itself thinking in the same positions over and
+over again, for example, if a player likes to leave the opening book in the same position,
+or in certian simple endgames.  Since we have a mechanism for simply storing and 
+retrieving postions from the database, it makes sense to use this capability to store the
+computed moves for a position and play them quickly.  We do need to make sure we aren't 
+playing at a higher level than the stored position, so we store the nodes, depth, and
+time searched and compare this to our expected time spent.  If the stored move seems 
+to fall in out compute boundary, we can just play it.  If we need to compute 
+longer/deeper, we can store our potentially superior move and hopefully play better
+when we reach this position at a faster time control.
+
+  This can also let us engage in offline study.  We can probe the brain for the stored
+position with the least number of nodes searched, search it one ply deeper, and place 
+this back in the brain.  Continually doing this will improve the computer's skill in these
+positions, and will also increase its ability in common speed chess positions.  This
+idea also obviously could be implemented on multicore computers, and even clusters.  If
+there are hundreds of CPU's avaialble, we can retrieve hundreds of positions worthy of
+study and search them in parallel. 
+
+  A imprivement on this idea is to store how many times a position is seen in the brain, 
+and in the selection of moves to ponder more deeply, divide the nodes searched by the
+position's popularity, or perhaps the popualrity's square root.  This ensure that more 
+popular positions will receive more study.  
+
