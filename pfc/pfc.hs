@@ -105,11 +105,11 @@ startBoard = "RNBQKBNR" ++
              "rnbqkbnr"
 
   
-
+board :: (Array Int Piece)
 board = array (0,63) $ zip [0..63] (map char2piece startBoard)
 
---movegen board for_side = 
---  map (\sq
+movegen board for_side = 
+  concat $ map (\(sq,pc)->if for_side==(side pc) then (generator pc)  board sq else [] ) (assocs board)
   
 print_board b =
   unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
