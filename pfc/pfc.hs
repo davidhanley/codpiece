@@ -4,16 +4,24 @@ import Data.List
 
 data Move = Move { from   :: Int ,
                    to     :: Int , 
-                   player :: (Array Piece Int) -> (Array Piece Int) } -- deriving( Eq, Show ) 
+                   player :: Board -> Board } -- deriving( Eq, Show ) 
 
 data Piece = Piece { side  :: Int , 
                      value :: Int ,
                      glyph :: Char , 
                      generator :: (Array Int Piece) -> Int -> [Move] } -- deriving(Eq)
 
+data Board = Board { squares :: Array Int Piece , 
+                     to_move :: Int ,
+                     move_hist :: [Move] }
+
+simple_play move board = Board ((squares board) // [ ( to move , (squares board) ! (from move)) , (from move,empty) ] ) 
+                               (-(to_move board)) 
+                               (move:(move_hist board))
+
 files = [ 'a'..'h' ]
 ranks = reverse [ '1'..'8' ]
-squares = [0..63]
+bsquares = [0..63]
 
 square_to_string sq = [ files !! r , ranks !! f ] where (r,f) = (square_to_coord sq) 
 
@@ -88,7 +96,7 @@ pawn_move_generator table myside board sq =
 --the rays along which bishops and rooks can move 
 (rook_deltas,bishop_deltas) = partition (\(x,y)->x==0||y==0) king_deltas 
 
-make_lookup_table cgf = array (0,63) $ zip squares (map cgf squares)
+make_lookup_table cgf = array (0,63) $ zip bsquares (map cgf bsquares)
 
 hop_table    =  make_lookup_table . generate_hopper 
 knight_table = hop_table knight_deltas
@@ -111,6 +119,8 @@ slider_move_generator table my_side board square =
          if ( target_side == my_side ) then [] else (
            if target_side == (-my_side) then [move] else (move:(trace_ray rest)))
 
+
+
 wPawn   = wPiece   100 'p' $ pawn_move_generator white_pawn_table 1 
 wKnight = wPiece   325 'n' $ hopper_move_generator knight_table 1
 wBishop = wPiece   350 'b' $ slider_move_generator bishop_table 1
@@ -118,11 +128,11 @@ wRook   = wPiece   500 'r' $ slider_move_generator rook_table 1
 wQueen  = wPiece   900 'q' $ slider_move_generator queen_table 1
 wKing   = wPiece 10000 'k' $ hopper_move_generator king_table 1
 
-bPawn   = bPiece 100 'P' $ pawn_move_generator black_pawn_table (-1)
-bKnight = bPiece 325 'N' $ hopper_move_generator knight_table (-1)
-bBishop = bPiece 350 'B' $ slider_move_generator bishop_table (-1)
-bRook   = bPiece 500 'R' $ slider_move_generator rook_table (-1)
-bQueen  = bPiece 900 'Q' $ slider_move_generator queen_table (-1)
+bPawn   = bPiece   100 'P' $ pawn_move_generator black_pawn_table (-1)
+bKnight = bPiece   325 'N' $ hopper_move_generator knight_table (-1)
+bBishop = bPiece   350 'B' $ slider_move_generator bishop_table (-1)
+bRook   = bPiece   500 'R' $ slider_move_generator rook_table (-1)
+bQueen  = bPiece   900 'Q' $ slider_move_generator queen_table (-1)
 bKing   = bPiece 10000 'K' $ hopper_move_generator king_table (-1)
 
 pieces = [ empty , 
@@ -145,20 +155,28 @@ startBoard = "RNBQKBNR" ++
              "rnbqkbnr"
 
   
-board :: (Array Int Piece)
-board = array (0,63) $ zip [0..63] (map char2piece startBoard)
+startboard :: (Array Int Piece)
+startboard = array (0,63) $ zip [0..63] (map char2piece startBoard)
 
-movegen board for_side = 
-  concat $ map (\(sq,pc)->if for_side==(side pc) then (generator pc)  board sq else [] ) (assocs board)
+sb = Board startboard 1 []
+ 
+movegen board = 
+  let s = (to_move board)
+      b = (squares board) in
+  concat $ map (\(sq,pc)->if s==(side pc) then (generator pc) b sq else [] ) (assocs b)
   
 print_board b =
   unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
-    print_rank r = [(concat (map (\f->"| "++[glyph (board ! (r*8+f))] ++ " ") [0..7])) ++ "|",print_horiz]
+    print_rank r = [(concat (map (\f->"| "++[glyph (b ! (r*8+f))] ++ " ") [0..7])) ++ "|",print_horiz]
     print_horiz = "+" ++ ( concat (replicate 8 "---+"))
+
 
 --board_material = foldl (\cv pc->cv + (value pc)*(side pc)) 
 
-pb _ = putStrLn $ print_board board 
+pb _ = putStrLn $ print_board startboard
 
+search::Int->Board->Int
+search 0 _ = 1
+search d board = sum $ map (\mv->search (d-1) (simple_play mv board)) (movegen board)
  
-main = print "chesssss"
+main = print $ search 5 sb
