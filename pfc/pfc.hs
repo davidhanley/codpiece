@@ -4,12 +4,12 @@ import Data.List
 
 data Move = Move { from   :: Int ,
                    to     :: Int , 
-                   player :: Board -> Board } -- deriving( Eq, Show ) 
+                   player :: Board -> Board } 
 
 data Piece = Piece { side  :: Int , 
                      value :: Int ,
                      glyph :: Char , 
-                     generator :: (Array Int Piece) -> Int -> [Move] } -- deriving(Eq)
+                     generator :: (Array Int Piece) -> Int -> [Move] }
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
@@ -19,9 +19,21 @@ simple_play move board = Board ((squares board) // [ ( to move , (squares board)
                                (-(to_move board)) 
                                (move:(move_hist board))
 
+-- i don't need most of these, but it's kinda cool and easy 
+[a8,b8,c8,d8,e8,f8,g8,h8,
+ a7,b7,c7,d7,e7,f7,g7,h7,
+ a6,b6,c6,d6,e6,f6,g6,h6,
+ a5,b5,c5,d5,e5,f5,g5,h5,
+ a4,b4,c4,d4,e4,f4,g4,h4,
+ a3,b3,c3,d3,e3,f3,g3,h3,
+ a2,b2,c2,d2,e2,f2,g2,h2,
+ a1,b1,c1,d1,e1,f1,g1,h1]=([0..63]::[Int])
+
 files = [ 'a'..'h' ]
 ranks = reverse [ '1'..'8' ]
 bsquares = [0..63]
+
+(white,black) = (1,(-1))
 
 square_to_string sq = [ files !! r , ranks !! f ] where (r,f) = (square_to_coord sq) 
 
@@ -55,7 +67,9 @@ add_coord (f,r) (f2,r2) = (f+f2,r+r2)
 
 --
 -- Move generation. Pieces have functions that take a board and a 'from' square, then return a list of pseudolegal
--- moves. 
+-- moves.
+--
+ 
 simple_move f t = Move f (coord_to_square t) (\x->x)
 
 knight_deltas :: [(Int, Int)]
@@ -67,7 +81,6 @@ king_deltas   = [ (x,y) | x<-[-1..1] , y<-[-1..1] , not ( x==0 && y==0 ) ]
 generate_hopper deltas sq = 
   map (simple_move sq) $ filter coord_ok $ map (add_coord (square_to_coord sq)) deltas
 
---given a s
 generate_ray sq delta = map (simple_move sq)  $ tail $ takeWhile coord_ok $ iterate (\s->add_coord s delta) (square_to_coord sq) 
 generate_slider deltas sq =  map (\delta->generate_ray sq delta) deltas
 
@@ -119,6 +132,39 @@ slider_move_generator table my_side board square =
          if ( target_side == my_side ) then [] else (
            if target_side == (-my_side) then [move] else (move:(trace_ray rest)))
 
+-- see if a square is attacked by a side.  Used to determine if a side can castle 
+-- i could also generate moves for a side and see if any of the "to" moves match the square,
+-- but that seems horrid
+
+hop_attacks board pc = any (\mv->board!(to mv)==pc) 
+
+sliders_on_ray board _ []             = False
+sliders_on_ray board pieces (move:rest)  = 
+  let pc = board ! (to move) in
+    if elem pc pieces then True else ( if pc == empty then sliders_on_ray board pieces rest else False )
+    
+attackbase board kp kt diag diagt hv hvt p pt king king_table square = 
+  hop_attacks board kp (kt!square) || any (sliders_on_ray board diag ) (diagt!square)||
+  any (sliders_on_ray board hv)(hvt!square)|| hop_attacks board p (snd (pt!square))|| hop_attacks board king (king_table!square)
+attacks 1 board  = 
+  attackbase board wKnight knight_table [wRook,wQueen] rook_table
+   [wBishop,wQueen] bishop_table wPawn black_pawn_table wKing king_table
+attacks (-1) board  = 
+  attackbase board bKnight knight_table [bRook,bQueen] rook_table
+   [bBishop,bQueen] bishop_table bPawn white_pawn_table bKing king_table
+
+can_white_castle_kingside board = 
+  let att sq = not $ attacks black board sq
+      bp sq pc = board!sq == pc in
+  if bp e1 wKing &&  bp f1 empty && bp g1 empty && bp h1 empty &&
+     att e1 && att f1 && att g1 then True else False 
+
+--
+-- Positional evaluation.  At first, simple piece-square lookups. 
+--
+
+
+--center_tropism = make_lookup_table (\sq->
 
 
 wPawn   = wPiece   100 'p' $ pawn_move_generator white_pawn_table 1 
@@ -167,7 +213,7 @@ movegen board =
   
 print_board b =
   unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
-    print_rank r = [(concat (map (\f->"| "++[glyph (b ! (r*8+f))] ++ " ") [0..7])) ++ "|",print_horiz]
+    print_rank r = [(concat (map (\f->"| "++(show (b ! (r*8+f))) ++ " ") [0..7])) ++ "|",print_horiz]
     print_horiz = "+" ++ ( concat (replicate 8 "---+"))
 
 
