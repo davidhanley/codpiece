@@ -1,6 +1,7 @@
 
 import Data.Array
 import Data.List
+import Data.Maybe 
 
 data Move = Move { from   :: Int ,
                    to     :: Int , 
@@ -9,7 +10,8 @@ data Move = Move { from   :: Int ,
 data Piece = Piece { side  :: Int , 
                      value :: Int ,
                      glyph :: Char , 
-                     generator :: (Array Int Piece) -> Int -> [Move] }
+                     generator :: (Array Int Piece) -> Int -> [Move] ,
+                     evaluate  :: (Array Int Piece) -> Int -> Int }
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
@@ -55,7 +57,7 @@ bPiece = Piece (-1)
 dummy_generator::  Array Int Piece -> Int -> [Move]
 dummy_generator a i = []
 
-empty   = Piece 0 0 ' ' dummy_generator
+empty   = Piece 0 0 ' ' dummy_generator (\bd sq->0)
 
 axis_ok x               = x >= 0 && x < 8
 coord_ok ( r , f )      = axis_ok r && axis_ok f
@@ -110,6 +112,7 @@ pawn_move_generator table myside board sq =
 (rook_deltas,bishop_deltas) = partition (\(x,y)->x==0||y==0) king_deltas 
 
 make_lookup_table cgf = array (0,63) $ zip bsquares (map cgf bsquares)
+make_lookup_table_rf func = make_lookup_table (func.square_to_coord)
 
 hop_table    =  make_lookup_table . generate_hopper 
 knight_table = hop_table knight_deltas
@@ -163,23 +166,30 @@ can_white_castle_kingside board =
 -- Positional evaluation.  At first, simple piece-square lookups. 
 --
 
+mp=[0,3,9,15,15,9,3,0]
+center_tropism = make_lookup_table_rf (\(f,r)->(mp!!f)+(mp!!r)) 
 
---center_tropism = make_lookup_table (\sq->
+to_center bs sq = center_tropism ! sq  
+flee_center bs sq = -(center_tropism ! sq)
 
+eval_sq sob (sq,pc) = (side pc)*
+   ( ((evaluate pc) sob sq) +(value pc) )
 
-wPawn   = wPiece   100 'p' $ pawn_move_generator white_pawn_table 1 
-wKnight = wPiece   325 'n' $ hopper_move_generator knight_table 1
-wBishop = wPiece   350 'b' $ slider_move_generator bishop_table 1
-wRook   = wPiece   500 'r' $ slider_move_generator rook_table 1
-wQueen  = wPiece   900 'q' $ slider_move_generator queen_table 1
-wKing   = wPiece 10000 'k' $ hopper_move_generator king_table 1
+eval board = let sob = (squares board) in sum ( map  (eval_sq sob) (assocs sob))
 
-bPawn   = bPiece   100 'P' $ pawn_move_generator black_pawn_table (-1)
-bKnight = bPiece   325 'N' $ hopper_move_generator knight_table (-1)
-bBishop = bPiece   350 'B' $ slider_move_generator bishop_table (-1)
-bRook   = bPiece   500 'R' $ slider_move_generator rook_table (-1)
-bQueen  = bPiece   900 'Q' $ slider_move_generator queen_table (-1)
-bKing   = bPiece 10000 'K' $ hopper_move_generator king_table (-1)
+wPawn   = wPiece   100 'p' (pawn_move_generator white_pawn_table 1) to_center
+wKnight = wPiece   325 'n' (hopper_move_generator knight_table 1) to_center
+wBishop = wPiece   350 'b' (slider_move_generator bishop_table 1) to_center
+wRook   = wPiece   500 'r' (slider_move_generator rook_table 1) to_center
+wQueen  = wPiece   900 'q' (slider_move_generator queen_table 1) to_center
+wKing   = wPiece 10000 'k' (hopper_move_generator king_table 1) flee_center
+
+bPawn   = bPiece   100 'P' (pawn_move_generator black_pawn_table (-1))  to_center
+bKnight = bPiece   325 'N' (hopper_move_generator knight_table (-1))  to_center
+bBishop = bPiece   350 'B' (slider_move_generator bishop_table (-1))  to_center
+bRook   = bPiece   500 'R' (slider_move_generator rook_table (-1))  to_center
+bQueen  = bPiece   900 'Q' (slider_move_generator queen_table (-1))  to_center
+bKing   = bPiece 10000 'K' (hopper_move_generator king_table (-1))  flee_center
 
 pieces = [ empty , 
            wPawn , wKnight , wBishop , wRook , wQueen , wKing , 
@@ -197,32 +207,47 @@ cahr2piece pc = case (find (\piece->pc == glyph piece) pieces) of
 startBoard = "RNBQKBNR" ++
              "PPPPPPPP" ++
              (concat (replicate 4 "        ")) ++
-             "ppp pppp" ++
+             "pppppppp" ++
              "rnbqkbnr"
 
   
 startboard :: (Array Int Piece)
 startboard = array (0,63) $ zip [0..63] (map char2piece startBoard)
 
-sb = Board startboard 1 []
+--data MoveBox = MoveBox { move :: Move ,
+--                         subTree :: SearchTree }
+
+
+ 
  
 movegen board = 
   let s = (to_move board)
       b = (squares board) in
   concat $ map (\(sq,pc)->if s==(side pc) then (generator pc) b sq else [] ) (assocs b)
   
-print_board b =
-  unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
+
+print_board b = do
+  putStrLn $ unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
     print_rank r = [(concat (map (\f->"| "++(show (b ! (r*8+f))) ++ " ") [0..7])) ++ "|",print_horiz]
     print_horiz = "+" ++ ( concat (replicate 8 "---+"))
 
 
---board_material = foldl (\cv pc->cv + (value pc)*(side pc)) 
+board_material ba = foldl (\cv pc->cv + (value pc)*(side pc)) 0 (elems ba)
 
-pb _ = putStrLn $ print_board startboard
+pb _ = print_board startboard
 
-search::Int->Board->Int
-search 0 _ = 1
-search d board = sum $ map (\mv->search (d-1) (simple_play mv board)) (movegen board)
- 
-main = print $ search 5 sb
+sb = Board startboard 1 []
+
+--
+-- tree search 
+--
+
+data SearchTree = SearchTree { board      :: Board , 
+                               staticEval :: Int , 
+                               childBoxes :: [(Move,SearchTree)] }
+
+makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSearchTree ((player move) board))) (movegen board))
+
+tree = makeSearchTree sb
+
+search tree 0 = ((staticEval tree) , Nothing )
