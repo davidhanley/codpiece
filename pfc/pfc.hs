@@ -208,28 +208,19 @@ startBoard = "RNBQKBNR" ++
              (concat (replicate 4 "        ")) ++
              "pppppppp" ++
              "rnbqkbnr"
-
   
 startboard :: (Array Int Piece)
 startboard = array (0,63) $ zip [0..63] (map char2piece startBoard)
-
---data MoveBox = MoveBox { move :: Move ,
---                         subTree :: SearchTree }
-
-
- 
  
 movegen board = 
   let s = (to_move board)
       b = (squares board) in
   concat $ map (\(sq,pc)->if s==(side pc) then (generator pc) b sq else [] ) (assocs b)
   
-
 print_board b = do
   putStrLn $ unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
     print_rank r = [(concat (map (\f->"| "++(show (b ! (r*8+f))) ++ " ") [0..7])) ++ "|",print_horiz]
     print_horiz = "+" ++ ( concat (replicate 8 "---+"))
-
 
 board_material ba = foldl (\cv pc->cv + (value pc)*(side pc)) 0 (elems ba)
 
@@ -245,19 +236,18 @@ data SearchTree = SearchTree { board      :: Board ,
                                staticEval :: Int , 
                                childBoxes :: [(Move,SearchTree)] }
 
+-- the search tree is infinite; ram is not. 
 makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSearchTree ((player move) board))) (movegen board))
 
 tree = makeSearchTree sb
 
-
-search_children (best_score,depth,bestmove) (move,subtree) =
-    let (child_score,_,child_line)=search subtree (depth-1) 
-        score = -child_score in 
-      if score>best_score then (score,depth,move:child_line) else (best_score,depth,bestmove) 
-
-
-search tree     0 = ((staticEval tree)*(to_move (board tree)) , 0 , [])
+---- super simple and stupid tree search 
+search tree     0 = ((staticEval tree)*(to_move (board tree)) , [])
 search tree depth = 
-  foldl search_children (-99999,depth,[]) (childBoxes tree) 
+  foldl search_children (-99999,[]) (childBoxes tree) where 
+    search_children (best_score,bestmove) (move,subtree) =
+      let (child_score,child_line)=search subtree (depth-1) 
+          score = -child_score in 
+        if score>best_score then (score,move:child_line) else (best_score,bestmove) 
 
- 
+main = print $ search tree 5
