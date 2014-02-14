@@ -15,11 +15,12 @@ data Piece = Piece { side  :: Int ,
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
-                     move_hist :: [Move] }
+                     move_hist :: [(Int,Int)] }
 
-simple_play move board = Board ((squares board) // [ ( to move , (squares board) ! (from move)) , (from move,empty) ] ) 
+simple_play::Int->Int->Board->Board
+simple_play f t board = Board ((squares board) // [ ( t , (squares board) ! f) , (f,empty) ] ) 
                                (-(to_move board)) 
-                               (move:(move_hist board))
+                               ((f,t):(move_hist board))
 
 -- i don't need most of these, but it's kinda cool and easy 
 [a8,b8,c8,d8,e8,f8,g8,h8,
@@ -72,7 +73,7 @@ add_coord (f,r) (f2,r2) = (f+f2,r+r2)
 -- moves.
 --
  
-simple_move f t = Move f (coord_to_square t) (\x->x)
+simple_move f t = Move f (coord_to_square t) (simple_play f (coord_to_square t) )
 
 knight_deltas :: [(Int, Int)]
 knight_deltas = [ (x,y) | x<-[-2..2] , y<-[-2..2] , (abs x) /= (abs y) , x/=0, y/=0 ] 
@@ -106,7 +107,6 @@ pawn_move_generator table myside board sq =
   let (moves,capts) = table ! sq in 
   (takeWhile (\move->(board ! (to move))==empty)            moves) ++
   (filter    (\move->side (board ! (to move)) == (-myside)) capts) 
-  
 
 --the rays along which bishops and rooks can move 
 (rook_deltas,bishop_deltas) = partition (\(x,y)->x==0||y==0) king_deltas 
@@ -199,7 +199,6 @@ char2piece pc = ictp pc pieces where
   ictp pc [] = empty
   ictp pc (f:r) = if glyph f==pc then f else (ictp pc r)   
 
-
 cahr2piece pc = case (find (\piece->pc == glyph piece) pieces) of
                   Just pc->pc
                   Nothing->empty
@@ -250,4 +249,15 @@ makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSear
 
 tree = makeSearchTree sb
 
-search tree 0 = ((staticEval tree) , Nothing )
+
+search_children (best_score,depth,bestmove) (move,subtree) =
+    let (child_score,_,child_line)=search subtree (depth-1) 
+        score = -child_score in 
+      if score>best_score then (score,depth,move:child_line) else (best_score,depth,bestmove) 
+
+
+search tree     0 = ((staticEval tree)*(to_move (board tree)) , 0 , [])
+search tree depth = 
+  foldl search_children (-99999,depth,[]) (childBoxes tree) 
+
+ 
