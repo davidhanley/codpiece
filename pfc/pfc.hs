@@ -15,12 +15,12 @@ data Piece = Piece { side  :: Int ,
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
-                     move_hist :: [(Int,Int)] }
+                     move_hist :: [(Piece,Int,Int)] }
 
 simple_play::Int->Int->Board->Board
 simple_play f t board = Board ((squares board) // [ ( t , (squares board) ! f) , (f,empty) ] ) 
                                (-(to_move board)) 
-                               ((f,t):(move_hist board))
+                               (((squares board)!t,f,t):(move_hist board))
 
 -- i don't need most of these, but it's kinda cool and easy 
 [a8,b8,c8,d8,e8,f8,g8,h8,
@@ -92,12 +92,12 @@ generate_slider deltas sq =  map (\delta->generate_ray sq delta) deltas
 --
 pawn_move side sq = 
   let  (file,rank)=square_to_coord sq
-       pawn_to = simple_move sq 
-       double_jumper double_rank double_side =  if rank /= double_rank || side /= double_side then [] else [pawn_to (file,rank-side*2) ]
-       pawncapt capfile direc = if file/=capfile then [pawn_to (file+direc,rank-side)] else []
+       pawn_to (f,r) = [simple_move sq (f,r)]
+       double_jumper double_rank double_side =  if rank /= double_rank || side /= double_side then [] else (pawn_to (file,rank-side*2) )
+       pawncapt capfile direc = if file/=capfile then (pawn_to (file+direc,rank-side)) else []
   in 
   if (rank==0) || (rank==7) then ([],[]) else (
-    [ pawn_to (file,rank-side) ] ++ ( double_jumper 6 1 ) ++ ( double_jumper 1 (-1) ) ,
+    ( pawn_to (file,rank-side) ) ++ ( double_jumper 6 1 ) ++ ( double_jumper 1 (-1) ) ,
     ( pawncapt 0 (-1) ) ++ ( pawncapt 7 1 ) ) 
 
 white_pawn_table = make_lookup_table $ pawn_move 1
@@ -239,15 +239,26 @@ data SearchTree = SearchTree { board      :: Board ,
 -- the search tree is infinite; ram is not. 
 makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSearchTree ((player move) board))) (movegen board))
 
-tree = makeSearchTree sb
+---- super simple negamax search
+--negamax tree     0 _ _        = 
+negamax tree depth alpha beta = 
+  if depth<=0 then ((staticEval tree)*(to_move (board tree)) , []) else 
+  chess_foldl check_child (-99999,[]) (childBoxes tree) where 
+    chess_foldl fn a [] = a
+    chess_foldl fn (alpha',ml) (f:r) = if alpha'>=beta then (alpha',ml) else chess_foldl fn (fn (alpha',ml) f) r
+    check_child (best_score,bestmove) (move,subtree) =
+      let (alpha',child_line)=neg (negamax subtree (depth-1) (-beta) (-alpha) ) in 
+        if alpha'>best_score then (alpha',move:child_line) else (best_score,bestmove) 
+    neg (s,m)=(-s,m)
 
----- super simple and stupid tree search 
-search tree     0 = ((staticEval tree)*(to_move (board tree)) , [])
-search tree depth = 
-  foldl search_children (-99999,[]) (childBoxes tree) where 
-    search_children (best_score,bestmove) (move,subtree) =
-      let (child_score,child_line)=search subtree (depth-1) 
-          score = -child_score in 
-        if score>best_score then (score,move:child_line) else (best_score,bestmove) 
+--mtdf -- do zero width serches until we zoom in on a good value
+mtdf sb depth =
+  mtdf_loop (-99999) 99999 where 
+    tree  = makeSearchTree sb
+    mtdf_loop low high = 
+      let guess       = (low+high) `div` 2
+          (score,line)= negamax tree depth guess (guess+1) in
+      if (low+1)>=high then (score,line) else 
+        if score<guess then (mtdf_loop low guess) else (mtdf_loop guess high)
 
-main = print $ search tree 5
+main = print $ mtdf sb 5 
