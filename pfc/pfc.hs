@@ -1,4 +1,8 @@
 
+-- Chess engine in haskell. Goal is to be strong expert/weak master ( ~2200 ) at blitz and < 1000 lines of simple non-obfuscated code 
+-- By David Hanley ( ctchrinthy@gmail.com ) davidhanley.org
+-- this sets up the pieces, plays legal moves, and can do efficient tree searches to choose the best move
+
 import Data.Array
 import Data.List
 import Data.Maybe 
@@ -10,17 +14,17 @@ data Move = Move { from   :: Int ,
 data Piece = Piece { side  :: Int , 
                      value :: Int ,
                      glyph :: Char , 
-                     generator :: (Array Int Piece) -> Int -> [Move] ,
-                     evaluate  :: (Array Int Piece) -> Int -> Int }
+                     generator :: Array Int Piece -> Int -> [Move] ,
+                     evaluate  :: Array Int Piece -> Int -> Int }
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
                      move_hist :: [(Piece,Int,Int)] }
 
 simple_play::Int->Int->Board->Board
-simple_play f t board = Board ((squares board) // [ ( t , (squares board) ! f) , (f,empty) ] ) 
+simple_play f t board = Board ( squares board // [ ( t , squares board ! f) , (f,empty) ] ) 
                                (-(to_move board)) 
-                               (((squares board)!t,f,t):(move_hist board))
+                               (( squares board ! t , f , t ):move_hist board)
 
 -- i don't need most of these, but it's kinda cool and easy 
 [a8,b8,c8,d8,e8,f8,g8,h8,
@@ -30,13 +34,13 @@ simple_play f t board = Board ((squares board) // [ ( t , (squares board) ! f) ,
  a4,b4,c4,d4,e4,f4,g4,h4,
  a3,b3,c3,d3,e3,f3,g3,h3,
  a2,b2,c2,d2,e2,f2,g2,h2,
- a1,b1,c1,d1,e1,f1,g1,h1]=([0..63]::[Int])
+ a1,b1,c1,d1,e1,f1,g1,h1]=[0..63]::[Int]
 
 files = [ 'a'..'h' ]
 ranks = reverse [ '1'..'8' ]
 bsquares = [0..63]
 
-(white,black) = (1,(-1))
+(white,black) = (1,-1)
 
 square_to_string sq = [ files !! r , ranks !! f ] where (r,f) = (square_to_coord sq) 
 
@@ -239,8 +243,6 @@ data SearchTree = SearchTree { board      :: Board ,
 -- the search tree is infinite; ram is not. 
 makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSearchTree ((player move) board))) (movegen board))
 
----- super simple negamax search
---negamax tree     0 _ _        = 
 negamax tree depth alpha beta = 
   if depth<=0 then ((staticEval tree)*(to_move (board tree)) , []) else 
   chess_foldl check_child (-99999,[]) (childBoxes tree) where 
