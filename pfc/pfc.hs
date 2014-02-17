@@ -3,6 +3,12 @@
 -- By David Hanley ( ctchrinthy@gmail.com ) davidhanley.org
 -- this sets up the pieces, plays legal moves, and can do efficient tree searches to choose the best move
 
+-- to do:
+-- en pesant
+-- castling
+-- promotion
+-- pawn structure 
+
 import Data.Array
 import Data.List
 import Data.Maybe 
@@ -19,12 +25,23 @@ data Piece = Piece { side  :: Int ,
 
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
-                     move_hist :: [(Piece,Int,Int)] }
+                     move_hist :: [(Piece,Int,Int)],
+                     e1_moves,e8_moves,h1_moves,a1_moves,h8_moves,a8_moves :: Int }
+
+add_if_ft::Int->Int->Int->Int->Int
+add_if_ft f t sq oldval = oldval + (if f==sq || t==sq then 1 else 0)
 
 simple_play::Int->Int->Board->Board
 simple_play f t board = Board ( squares board // [ ( t , squares board ! f) , (f,empty) ] ) 
                                (-(to_move board)) 
                                (( squares board ! t , f , t ):move_hist board)
+                               (break_if e1 (e1_moves board))
+                               (break_if e8 (e8_moves board))
+                               (break_if h1 (h1_moves board))
+                               (break_if a1 (a1_moves board))                  
+                               (break_if h8 (h8_moves board))
+                               (break_if a8 (a8_moves board)) where 
+                               break_if = add_if_ft f t 
 
 -- i don't need most of these, but it's kinda cool and easy 
 [a8,b8,c8,d8,e8,f8,g8,h8,
@@ -230,7 +247,7 @@ board_material ba = foldl (\cv pc->cv + (value pc)*(side pc)) 0 (elems ba)
 
 pb _ = print_board startboard
 
-sb = Board startboard 1 []
+sb = Board startboard 1 [] 0 0 0 0 0 0
 
 --
 -- tree search 
