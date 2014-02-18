@@ -73,6 +73,7 @@ instance Show Piece where
 instance Eq Piece where
   (==) p1 p2 = (glyph p1)==(glyph p2) 
 
+
 wPiece = Piece 1
 bPiece = Piece (-1)
 
@@ -201,14 +202,14 @@ eval board = let sob = (squares board) in sum ( map  (eval_sq sob) (assocs sob))
 wPawn   = wPiece   100 'p' (pawn_move_generator white_pawn_table 1) to_center
 wKnight = wPiece   325 'n' (hopper_move_generator knight_table 1) to_center
 wBishop = wPiece   350 'b' (slider_move_generator bishop_table 1) to_center
-wRook   = wPiece   500 'r' (slider_move_generator rook_table 1) to_center
+wRook   = wPiece   500 'r' (slider_move_generator rook_table 1) (\_ _->0)
 wQueen  = wPiece   900 'q' (slider_move_generator queen_table 1) to_center
 wKing   = wPiece 10000 'k' (hopper_move_generator king_table 1) flee_center
 
 bPawn   = bPiece   100 'P' (pawn_move_generator black_pawn_table (-1))  to_center
 bKnight = bPiece   325 'N' (hopper_move_generator knight_table (-1))  to_center
 bBishop = bPiece   350 'B' (slider_move_generator bishop_table (-1))  to_center
-bRook   = bPiece   500 'R' (slider_move_generator rook_table (-1))  to_center
+bRook   = bPiece   500 'R' (slider_move_generator rook_table (-1))   (\_ _->0)
 bQueen  = bPiece   900 'Q' (slider_move_generator queen_table (-1))  to_center
 bKing   = bPiece 10000 'K' (hopper_move_generator king_table (-1))  flee_center
 
@@ -239,9 +240,15 @@ movegen board =
   concat $ map (\(sq,pc)->if s==(side pc) then (generator pc) b sq else [] ) (assocs b)
   
 print_board b = do
-  putStrLn $ unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
+  unlines $ [print_horiz]++(concat (map print_rank [0..7])) where
     print_rank r = [(concat (map (\f->"| "++(show (b ! (r*8+f))) ++ " ") [0..7])) ++ "|",print_horiz]
     print_horiz = "+" ++ ( concat (replicate 8 "---+"))
+
+instance Show Board where
+ show b = (print_board (squares b)) ++ 
+          "To move:" ++ (if (to_move b)==1 then "White" else "Black") ++ "\n" ++
+          (concatMap (\(fn,str)->str++" moves:"++(show (fn b))++"\n") ms_map ) where 
+   ms_map = [(h1_moves,"h1"),(e1_moves,"e1"),(a1_moves,"a1"),(h8_moves,"h8"),(e8_moves,"e8"),(a8_moves,"a8")]
 
 board_material ba = foldl (\cv pc->cv + (value pc)*(side pc)) 0 (elems ba)
 
@@ -260,9 +267,16 @@ data SearchTree = SearchTree { board      :: Board ,
 -- the search tree is infinite; ram is not. 
 makeSearchTree board = SearchTree board (eval board) (map (\move->(move,makeSearchTree ((player move) board))) (movegen board))
 
+break_quiescence [] move       = False
+break_quiescence ((pc,f,t):r) (move,_) = pc/=empty && t==(to move) 
+
 negamax tree depth alpha beta = 
-  if depth<=0 then ((staticEval tree)*(to_move (board tree)) , []) else 
-  chess_foldl check_child (-99999,[]) (childBoxes tree) where 
+  --if quiescing then ( static_eval , []) else 
+  chess_foldl check_child (if quiescing then static_eval else -99999,[]) children where 
+    quiescing = depth <= 0
+    static_eval = (staticEval tree)*(to_move (board tree))
+    bq = break_quiescence (move_hist (board tree))
+    children = if quiescing then (filter bq (childBoxes tree)) else (childBoxes tree)
     chess_foldl fn a [] = a
     chess_foldl fn (alpha',ml) (f:r) = if alpha'>=beta then (alpha',ml) else chess_foldl fn (fn (alpha',ml) f) r
     check_child (best_score,bestmove) (move,subtree) =
@@ -280,4 +294,29 @@ mtdf sb depth =
       if (low+1)>=high then (score,line) else 
         if score<guess then (mtdf_loop low guess) else (mtdf_loop guess high)
 
-main = print $ mtdf sb 5 
+stringToMove board str = 
+  let moves = movegen board
+      matched_moves = filter (\pm->(show pm)==str) moves in
+  case matched_moves of
+     [m]-> Just m 
+     _  -> Nothing 
+
+playAndRespond board move =
+ let board' = ((player move) board ) 
+     (rv,responseLine) = mtdf board' 4 
+     board'' = (player (head responseLine) board') in
+ board''
+     
+process board line = 
+  case (stringToMove board line) of 
+    Just(mv)->playAndRespond board mv
+    Nothing ->board
+
+mainloop board = do
+  print board
+  print $ movegen board
+  line <- getLine 
+  mainloop (process board line)
+
+
+main = print $ mtdf sb 5
