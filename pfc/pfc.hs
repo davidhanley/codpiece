@@ -26,22 +26,25 @@ data Piece = Piece { side  :: Int ,
 data Board = Board { squares :: Array Int Piece , 
                      to_move :: Int ,
                      move_hist :: [(Piece,Int,Int)],
-                     e1_moves,e8_moves,h1_moves,a1_moves,h8_moves,a8_moves :: Int }
+                     e1_moves,e8_moves,h1_moves,a1_moves,h8_moves,a8_moves,last_was_double_to :: Int }
 
 add_if_ft::Int->Int->Int->Int->Int
 add_if_ft f t sq oldval = oldval + (if f==sq || t==sq then 1 else 0)
 
 simple_play::Int->Int->Board->Board
-simple_play f t board = Board ( squares board // [ ( t , squares board ! f) , (f,empty) ] ) 
+simple_play f t board = Board ( squares board // [ ( t ,from_pc) , (f,empty) ] ) 
                                (-(to_move board)) 
-                               (( squares board ! t , f , t ):move_hist board)
+                               (( from_pc , f , t ):move_hist board)
                                (break_if e1 (e1_moves board))
                                (break_if e8 (e8_moves board))
                                (break_if h1 (h1_moves board))
                                (break_if a1 (a1_moves board))                  
                                (break_if h8 (h8_moves board))
-                               (break_if a8 (a8_moves board)) where 
+                               (break_if a8 (a8_moves board)) 
+                               (if ((from_pc == wPawn ) || (from_pc==bPawn)) && ((abs (f-t))==16) then t else -1)
+                             where 
                                break_if = add_if_ft f t 
+                               from_pc = squares board ! f 
 
 -- i don't need most of these, but it's kinda cool and easy 
 [a8,b8,c8,d8,e8,f8,g8,h8,
@@ -247,14 +250,16 @@ print_board b = do
 instance Show Board where
  show b = (print_board (squares b)) ++ 
           "To move:" ++ (if (to_move b)==1 then "White" else "Black") ++ "\n" ++
-          (concatMap (\(fn,str)->str++" moves:"++(show (fn b))++"\n") ms_map ) where 
+          (concatMap (\(fn,str)->str++" moves:"++(show (fn b))++"\n") ms_map ) ++ mh ++ eps where 
    ms_map = [(h1_moves,"h1"),(e1_moves,"e1"),(a1_moves,"a1"),(h8_moves,"h8"),(e8_moves,"e8"),(a8_moves,"a8")]
+   mh = (show $ move_hist b) 
+   eps = "\nEn pesant capture square:" ++ (show (last_was_double_to b))
 
 board_material ba = foldl (\cv pc->cv + (value pc)*(side pc)) 0 (elems ba)
 
 pb _ = print_board startboard
 
-sb = Board startboard 1 [] 0 0 0 0 0 0
+sb = Board startboard 1 [] 0 0 0 0 0 0 (-1)
 
 --
 -- tree search 
@@ -294,6 +299,8 @@ mtdf sb depth =
       if (low+1)>=high then (score,line) else 
         if score<guess then (mtdf_loop low guess) else (mtdf_loop guess high)
 
+
+---- UI stuff, for connecting to the internet chess server
 stringToMove board str = 
   let moves = movegen board
       matched_moves = filter (\pm->(show pm)==str) moves in
@@ -319,4 +326,4 @@ mainloop board = do
   mainloop (process board line)
 
 
-main = print $ mtdf sb 5
+main = mainloop sb
