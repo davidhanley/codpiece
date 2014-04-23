@@ -2,6 +2,12 @@
   (:require [clojure.test :refer :all]
             [sccp.core :refer :all]))
 
-(deftest a-test
-  (testing "FIXME, I fail."
-    (is (= 0 1))))
+(deftest basic-square-test
+  (testing "basic square stuff"
+    (is (= (square-to-string 45) "f3"))
+    (is (axis-ok 1))
+    (is (not (axis-ok -1)))
+    (is (axis-ok 7))
+    (is (not (axis-ok 8)))
+    )
+)
