@@ -17,9 +17,16 @@
 (def squares (vec (range 0 64)))
 (def squares-coords (map square-to-cr squares))
 
+;cute hack to make constants for all the chess squares
+(defn squarify[sq](eval (list 'def (symbol (square-to-string sq)) sq)))
+(doall (map squarify squares))
+
 (defrecord piece [side name value generator evaluator])
 
 (defrecord move [from to player])
+
+(defmethod print-method move [x ^java.io.Writer writer]
+  (print-method (str (square-to-string (:from x)) "-" (square-to-string (:to x))) writer))
 
 (defn axis-ok[ a ]     (and (>= a 0) (< a 8)))
 (defn coord-ok[ [c r] ](and (axis-ok c)(axis-ok r)))
@@ -41,29 +48,73 @@
   (let [f (cr-to-square from-coord) t (cr-to-square to-coord) ]
        (move. f t (simple-play f t))))
 
+;
+; Make moves for the "hopping" pieces such as knights and kings
+
 (defn hopper-moves[ deltas coord ] 
   (map (fn [to] (make-simple-move coord to)) (hopper-to coord deltas)))
 
-(def knight-moves (map (partial hopper-moves knight-deltas) squares-coords))
+(def knight-moves (vec (map (partial hopper-moves knight-deltas) squares-coords)))
 
-(def wpawn   (piece. 1 " p" 100 nil nil))
-(def wknight (piece. 1 " n" 325 nil nil))
-(def wbishop (piece. 1 " b" 350 nil nil))
-(def wrook   (piece. 1 " r" 500 nil nil))
-(def wqueen  (piece. 1 " q" 900 nil nil))
-(def wking   (piece. 1 " k" 10000 nil nil))
+(defn hops-where-dest-not-side[ table side ]
+  (fn[board sq](filter (fn[mv](not= (:side (board (:to mv))) side)) (table sq))))	
+			
+(def knight-gen (partial hops-where-dest-not-side knight-moves))
+
+(def king-moves (vec (map (partial hopper-moves king-deltas) squares-coords)))
+
+(def king-gen (partial hops-where-dest-not-side king-moves))
+
+;
+; Now make moves for the "sliding" pieces such as bishops, rooks, queens
+
+(def rook-deltas   [[0 -1] [-1 0] [1 0] [0 1]])
+(def bishop-deltas [[-1 -1][-1 1][1 -1][1 1]])
+
+(defn trace-ray[ start direc ]
+  (when (coord-ok start) (cons start (trace-ray (add-coord start direc) direc))))
+
+(defn moves-on-ray[ start direc ] 
+  (map (fn[ dest ](make-simple-move start dest)) (rest (trace-ray start direc))))
+
+(defn make-ray-lookup[ deltas ] 
+  (map (fn[sq](map (fn[delt](moves-on-ray sq delt)) deltas)) squares-coords))
+
+(defn dummy[bd sq][])
+
+(def wpawn   (piece. 1 " p" 100 dummy nil))
+(def wknight (piece. 1 " n" 325 (knight-gen white) nil))
+(def wbishop (piece. 1 " b" 350 dummy nil))
+(def wrook   (piece. 1 " r" 500 dummy nil))
+(def wqueen  (piece. 1 " q" 900 dummy nil))
+(def wking   (piece. 1 " k" 10000 (king-gen white) nil))
 /
 (def bpawn   (piece. -1 " P" -100 nil nil))
-(def bknight (piece. -1 " N" -325 nil nil))
+(def bknight (piece. -1 " N" -325 (knight-gen black) nil))
 (def bbishop (piece. -1 " B" -350 nil nil))
 (def brook   (piece. -1 " R" -500 nil nil))
 (def bqueen  (piece. -1 " Q" -900 nil nil))
-(def bking   (piece. -1 " K" -10000 nil nil))
+(def bking   (piece. -1 " K" -10000 (king-gen black) nil))
 
 (def pieces [none wpawn wknight wbishop wrook wqueen wking 
                   bpawn bknight bbishop brook bqueen bking])
 
 (defn char-piece[ch] (first (filter (fn[pc](= ch (get (.name pc) 1))) pieces)))
+
+(def start-board (vec (map char-piece 
+     (str "RNBQKBNR"
+     	  "PPPPPPPP"
+          "        "
+	  "        "
+	  "        "
+          "        "
+          "pppppppp"
+	  "rnbqkbnr"))))
+
+(defn material-balance[ bd ](reduce + (map :value bd)))
+
+(defn generate-moves[ bd for-side ]
+  (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares))
 
 ;(def wpiece (partial piece. 1))
 ;(def bpiece (partial piece. -1))
