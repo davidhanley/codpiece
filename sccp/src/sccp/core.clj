@@ -78,22 +78,41 @@
   (map (fn[ dest ](make-simple-move start dest)) (rest (trace-ray start direc))))
 
 (defn make-ray-lookup[ deltas ] 
-  (map (fn[sq](map (fn[delt](moves-on-ray sq delt)) deltas)) squares-coords))
+  (vec (map (fn[sq](filter (fn[l](not= (count l) 0)) (map (fn[delt](moves-on-ray sq delt)) deltas))) squares-coords)))
+
+(defn ray-until-side[ board ray other ]
+  (when (not (empty? ray))
+    (let [move (first ray)
+	 there (:side (board (:to move)))]
+	 (if (= there 0) (cons move (ray-until-side board (rest ray) other))
+	   (if (= there other) [move] [])))))
+
+(def rook-table (make-ray-lookup rook-deltas))
+(def bishop-table (make-ray-lookup bishop-deltas))
+(def queen-table (map concat rook-table bishop-table))
+
+(defn slider-gen[ raytable other ]
+  (fn[board sq](mapcat (fn[ray](ray-until-side board ray other)) (raytable sq))))
+
+;
+; Pawns just have to be difficult! 
+
+
 
 (defn dummy[bd sq][])
 
 (def wpawn   (piece. 1 " p" 100 dummy nil))
 (def wknight (piece. 1 " n" 325 (knight-gen white) nil))
-(def wbishop (piece. 1 " b" 350 dummy nil))
-(def wrook   (piece. 1 " r" 500 dummy nil))
-(def wqueen  (piece. 1 " q" 900 dummy nil))
+(def wbishop (piece. 1 " b" 350 (slider-gen bishop-table -1) nil))
+(def wrook   (piece. 1 " r" 500 (slider-gen rook-table -1) nil))
+(def wqueen  (piece. 1 " q" 900 (slider-gen queen-table -1) nil))
 (def wking   (piece. 1 " k" 10000 (king-gen white) nil))
-/
+
 (def bpawn   (piece. -1 " P" -100 nil nil))
 (def bknight (piece. -1 " N" -325 (knight-gen black) nil))
-(def bbishop (piece. -1 " B" -350 nil nil))
-(def brook   (piece. -1 " R" -500 nil nil))
-(def bqueen  (piece. -1 " Q" -900 nil nil))
+(def bbishop (piece. -1 " B" -350 (slider-gen bishop-table 1) nil))
+(def brook   (piece. -1 " R" -500 (slider-gen rook-table 1) nil))
+(def bqueen  (piece. -1 " Q" -900 (slider-gen queen-table 1) nil))
 (def bking   (piece. -1 " K" -10000 (king-gen black) nil))
 
 (def pieces [none wpawn wknight wbishop wrook wqueen wking 
@@ -108,16 +127,13 @@
 	  "        "
 	  "        "
           "        "
-          "pppppppp"
+          "pppp ppp"
 	  "rnbqkbnr"))))
 
 (defn material-balance[ bd ](reduce + (map :value bd)))
 
 (defn generate-moves[ bd for-side ]
   (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares))
-
-;(def wpiece (partial piece. 1))
-;(def bpiece (partial piece. -1))
 
 (defn -main
   "I don't do a whole lot ... yet."
