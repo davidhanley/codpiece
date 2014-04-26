@@ -77,8 +77,10 @@
 (defn moves-on-ray[ start direc ] 
   (map (fn[ dest ](make-simple-move start dest)) (rest (trace-ray start direc))))
 
+(defn mapv[ fn seq ](vec (map fn seq)))
+
 (defn make-ray-lookup[ deltas ] 
-  (vec (map (fn[sq](filter (fn[l](not= (count l) 0)) (map (fn[delt](moves-on-ray sq delt)) deltas))) squares-coords)))
+  (mapv (fn[sq](filter (fn[l](not= (count l) 0)) (mapv (fn[delt](moves-on-ray sq delt)) deltas))) squares-coords))
 
 (defn ray-until-side[ board ray other ]
   (when (not (empty? ray))
@@ -89,26 +91,50 @@
 
 (def rook-table (make-ray-lookup rook-deltas))
 (def bishop-table (make-ray-lookup bishop-deltas))
-(def queen-table (map concat rook-table bishop-table))
+(def queen-table (vec (map concat rook-table bishop-table)))
 
 (defn slider-gen[ raytable other ]
   (fn[board sq](mapcat (fn[ray](ray-until-side board ray other)) (raytable sq))))
 
 ;
 ; Pawns just have to be difficult! 
+; 3 pawn move vectors per square, one for forward moves, one for captures, one for en pesants 
+; TODO: deal with en pesant 
+; TODO: promotion
+(defn pawn-moves[ from direc ]
+  (let [
+    [col row] from
+    simple (cons (make-simple-move from (add-coord from [0 direc]))
+		       (if (or (and (= direc -1) (= row 6))
+			       (and (= direc 1) (= row 1)))
+			   [(make-simple-move from (add-coord from [0 (* 2 direc)]))] []))
+    capts (concat (if (not= (first from) 0) [(make-simple-move from (add-coord from [-1 direc]))] [] )
+		  (if (not= (first from) 7) [(make-simple-move from (add-coord from [1  direc]))] [] ))        
+    ]
+    (if (or (= row 0) (= row 7)) [] (list simple capts))))
+ 
+(defn pawn-move-generator[ capturing table ]
+  (fn[ board sq ] (let [
+		    pawn-moves (table sq)
+		    [moves captures] pawn-moves]
+		    (concat
+		     (take-while (fn[mv](= (board (:to mv)) none)) moves)
+		     (filter (fn[mv](= (:side (board (:to mv))) capturing)) captures)))))
 
-
+(def white-pawn-moves (vec (map (fn[sq](pawn-moves sq -1)) squares-coords)))
+(def black-pawn-moves (vec (map (fn[sq](pawn-moves sq  1)) squares-coords)))
+       
 
 (defn dummy[bd sq][])
 
-(def wpawn   (piece. 1 " p" 100 dummy nil))
+(def wpawn   (piece. 1 " p" 100 (pawn-move-generator -1 white-pawn-moves) nil))
 (def wknight (piece. 1 " n" 325 (knight-gen white) nil))
 (def wbishop (piece. 1 " b" 350 (slider-gen bishop-table -1) nil))
 (def wrook   (piece. 1 " r" 500 (slider-gen rook-table -1) nil))
 (def wqueen  (piece. 1 " q" 900 (slider-gen queen-table -1) nil))
 (def wking   (piece. 1 " k" 10000 (king-gen white) nil))
 
-(def bpawn   (piece. -1 " P" -100 nil nil))
+(def bpawn   (piece. -1 " P" -100 (pawn-move-generator 1 black-pawn-moves) nil))
 (def bknight (piece. -1 " N" -325 (knight-gen black) nil))
 (def bbishop (piece. -1 " B" -350 (slider-gen bishop-table 1) nil))
 (def brook   (piece. -1 " R" -500 (slider-gen rook-table 1) nil))
