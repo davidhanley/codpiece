@@ -47,7 +47,7 @@
   (let [s1 (:squares bd)
         delta (concat [(:from move) none (:to move) (s1 (:from move))] (:move-assoc move))
         s2 (apply assoc s1 delta)
-	ed (concat ['squares s2] (:extra-assoc move)) ]
+	ed (concat ['squares s2] [:to-move (- (:to-move bd)) ] (:extra-assoc move)) ]
       ;(println delta)
       ;(print (print-board s2))
       ;(println ed)
@@ -231,14 +231,15 @@
 (defn material-balance[ bd ](reduce + (map :value bd)))
 (defn locate[ piece board ](.indexOf (:squares board) piece))
 
-(defn generate-moves[ board for-side ]
-  (let [bd (:squares board)]
+(defn generate-moves[ board ]
+  (let [bd (:squares board)
+        for-side (:to-move board)]
        (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares)))
 
 
-(defn perft[ depth bd side ]
+(defn perft[ depth bd ]
      (if (= depth 0) 1
-       (reduce + (map (fn[mv](perft (dec depth) ((:player mv) bd) (- side))) (generate-moves bd side)))))
+       (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd)))))
 
 (defn -main
   "I don't do a whole lot ... yet."
