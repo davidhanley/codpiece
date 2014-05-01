@@ -16,8 +16,9 @@
 (defn cr-to-square[ [c r] ] (+ c (* r 8)))
 
 (defn square-to-string[ sq ]
-  (let [[c r](square-to-cr sq)]
-       (str (get cols c) (get rows r))))
+  (if (or (< sq 0)(> sq 63)) "none"
+    (let [[c r](square-to-cr sq)]
+	 (str (get cols c) (get rows r)))))
 
 (def squares (vec (range 0 64)))
 (def squares-coords (map square-to-cr squares))
@@ -36,12 +37,21 @@
 		  white-king black-king 
 		  en-pesant
 	          wcq wck bcq bck
-                  drawish-moves 
+                  drawing-moves 
 		  halfmoves])
 
-(defn play[ board move ]
-  (let [squares (:squares board)]
-  (apply assoc board 'squares squares (:player move))))
+(def none (piece. 0 "  " 0 #() #(0)))
+
+
+(defn play[ bd move ]
+  (let [s1 (:squares bd)
+        delta (concat [(:from move) none (:to move) (s1 (:from move))] (:move-assoc move))
+        s2 (apply assoc s1 delta)
+	ed (concat ['squares s2] (:extra-assoc move)) ]
+      ;(println delta)
+      ;(print (print-board s2))
+      ;(println ed)
+      (apply assoc bd :squares s2 ed)))
 	  
 
 (defmethod print-method move [x ^java.io.Writer writer]
@@ -58,8 +68,6 @@
 (defn add-coord [ [c1 r1] [c2 r2] ]  [ (+ c1 c2) (+ r1 r2) ] )
 
 (defn hopper-to[ coord deltas ] (filter coord-ok (map (partial add-coord coord) deltas)))
-
-(def none (piece. 0 "  " 0 #() #(0)))
 
 (defn simple-play[ f t ]
   (fn [board] (assoc board f none t (board f))))
@@ -136,7 +144,7 @@
     simple (cons (make-simple-move from (add-coord from [0 direc]))
 		       (if (or (and (= direc -1) (= row 6))
 			       (and (= direc 1) (= row 1)))
-			   [(make-simple-move from (add-coord from [0 (* 2 direc)]))] []))
+			   [(make-simple-move from (add-coord from [0 (* 2 direc)]) :extra-struct-change [:en-pesant (cr-to-square (add-coord from [0 direc]))])] []))
     capts (concat (if (not= (first from) 0) [(make-simple-move from (add-coord from [-1 direc]))] [] )
 		  (if (not= (first from) 7) [(make-simple-move from (add-coord from [1  direc]))] [] ))        
     ]
@@ -198,20 +206,22 @@
 		
 (def start-board (parse-fen fen-start))      
 
-
 (defn print-board-part[ board [ c r ] ]
-  (let [div ["\n+---+---+---+---+---+---+---+---+\n|"]]
-  (join (concat  (if (= c 0) div [])
+  (let [div ["\n+---+---+---+---+---+---+---+---+\n"]]
+  (join (concat  (when (= c 0) div)
+		 (when (= c 0) "|")
 		 [ (:name (board (cr-to-square [c r]))) " |"]
-		 (if (and (= c 7)(= r 7)) div)))))
+		 (when (and (= c 7)(= r 7)) div)))))
 
 (defn print-board[ board ]
   (join (map (partial print-board-part board) squares-coords)))
 		     
 (defmethod print-method board [x ^java.io.Writer writer]
   (let [w (fn[s](.write writer s))]
-       (w (print-board (:squares start-board)))
-       (w (str "to move:" (if (= (:to-move board) white) "white" "black")))
+       (w (print-board (:squares x)))
+       (w (str "to move:" (if (= (:to-move x) white) "white" "black") "\n"))
+       (w (str "Kings at : " (mapv square-to-string [(:white-king x)(:black-king x)]) "\n" ))
+       (w (str "En pesant : " (square-to-string (:en-pesant x)) "\n"))
        ))
 
 ;(defmethod print-method move [x ^java.io.Writer writer]
