@@ -1,5 +1,10 @@
 (ns sccp.core
-  (:gen-class))
+    (:gen-class))
+
+(use '[clojure.string :only (join split)])
+
+
+(defn l[] (use 'sccp.core :reload))
 
 (def white 1)
 (def black -1)
@@ -17,17 +22,32 @@
 (def squares (vec (range 0 64)))
 (def squares-coords (map square-to-cr squares))
 
+(defn string-to-square[ str ](.indexOf (vec (map square-to-string squares)) str))
+
 ;cute hack to make constants for all the chess squares
-(defn squarify[sq](eval (list 'def (symbol (square-to-string sq)) sq)))
-(doall (map squarify squares))
+(doseq [sq squares](eval (list 'def (symbol (square-to-string sq)) sq)))
 
 (defrecord piece [side name value generator evaluator])
 
-(defrecord move [from to player])
+(defrecord move  [from to move-assoc extra-assoc])
+
+(defrecord board [squares 
+                  to-move 
+		  white-king black-king 
+		  en-pesant
+	          wcq wck bcq bck
+                  drawish-moves 
+		  halfmoves])
+
+(defn play[ board move ]
+  (let [squares (:squares board)]
+  (apply assoc board 'squares squares (:player move))))
+	  
 
 (defmethod print-method move [x ^java.io.Writer writer]
   (print-method (str (square-to-string (:from x)) "-" (square-to-string (:to x))) writer))
 
+(def axis (range 8))
 (defn axis-ok[ a ]     (and (>= a 0) (< a 8)))
 (defn coord-ok[ [c r] ](and (axis-ok c)(axis-ok r)))
 
@@ -42,26 +62,37 @@
 (def none (piece. 0 "  " 0 #() #(0)))
 
 (defn simple-play[ f t ]
-  (fn [board] (assoc board none f (get (board f)) t)))
+  (fn [board] (assoc board f none t (board f))))
 
-(defn make-simple-move[ from-coord to-coord ]
+(declare wking bking)
+
+(defn make-simple-move[ from-coord to-coord &{ :keys [extra-board-change extra-struct-change] } ]
   (let [f (cr-to-square from-coord) t (cr-to-square to-coord) ]
-       (move. f t (simple-play f t))))
+       (move. f t 
+	      extra-board-change
+	      (concat (when (or (= f e1)(= f h1)(= t h1)) ['wkc false])
+		      (when (or (= f e1)(= f a1)(= f a1)) ['wqc false])
+		      (when (or (= f e8)(= f h8)(= t h8)) ['bkc false])
+		      (when (or (= f e8)(= f a8)(= t h8)) ['bqc false])
+		      extra-struct-change
+		      ))))
 
 ;
 ; Make moves for the "hopping" pieces such as knights and kings
 
-(defn hopper-moves[ deltas coord ] 
+(defn hopper-moves[ deltas coord  ] 
   (map (fn [to] (make-simple-move coord to)) (hopper-to coord deltas)))
 
-(def knight-moves (vec (map (partial hopper-moves knight-deltas) squares-coords)))
+;(defn mapv[ fn seq ](vec (map fn seq)))
+
+(def knight-moves (mapv (partial hopper-moves knight-deltas) squares-coords))
 
 (defn hops-where-dest-not-side[ table side ]
   (fn[board sq](filter (fn[mv](not= (:side (board (:to mv))) side)) (table sq))))	
 			
 (def knight-gen (partial hops-where-dest-not-side knight-moves))
 
-(def king-moves (vec (map (partial hopper-moves king-deltas) squares-coords)))
+(def king-moves (mapv (partial hopper-moves king-deltas) squares-coords))
 
 (def king-gen (partial hops-where-dest-not-side king-moves))
 
@@ -76,8 +107,6 @@
 
 (defn moves-on-ray[ start direc ] 
   (map (fn[ dest ](make-simple-move start dest)) (rest (trace-ray start direc))))
-
-(defn mapv[ fn seq ](vec (map fn seq)))
 
 (defn make-ray-lookup[ deltas ] 
   (mapv (fn[sq](filter (fn[l](not= (count l) 0)) (mapv (fn[delt](moves-on-ray sq delt)) deltas))) squares-coords))
@@ -121,45 +150,85 @@
 		     (take-while (fn[mv](= (board (:to mv)) none)) moves)
 		     (filter (fn[mv](= (:side (board (:to mv))) capturing)) captures)))))
 
-(def white-pawn-moves (vec (map (fn[sq](pawn-moves sq -1)) squares-coords)))
-(def black-pawn-moves (vec (map (fn[sq](pawn-moves sq  1)) squares-coords)))
+(def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
+(def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
        
 
 (defn dummy[bd sq][])
 
-(def wpawn   (piece. 1 " p" 100 (pawn-move-generator -1 white-pawn-moves) nil))
-(def wknight (piece. 1 " n" 325 (knight-gen white) nil))
-(def wbishop (piece. 1 " b" 350 (slider-gen bishop-table -1) nil))
-(def wrook   (piece. 1 " r" 500 (slider-gen rook-table -1) nil))
-(def wqueen  (piece. 1 " q" 900 (slider-gen queen-table -1) nil))
-(def wking   (piece. 1 " k" 10000 (king-gen white) nil))
+(def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
+(def wknight (piece. 1 " N" 325 (knight-gen white) nil))
+(def wbishop (piece. 1 " B" 350 (slider-gen bishop-table -1) nil))
+(def wrook   (piece. 1 " R" 500 (slider-gen rook-table -1) nil))
+(def wqueen  (piece. 1 " Q" 900 (slider-gen queen-table -1) nil))
+(def wking   (piece. 1 " K" 10000 (king-gen white) nil))
 
-(def bpawn   (piece. -1 " P" -100 (pawn-move-generator 1 black-pawn-moves) nil))
-(def bknight (piece. -1 " N" -325 (knight-gen black) nil))
-(def bbishop (piece. -1 " B" -350 (slider-gen bishop-table 1) nil))
-(def brook   (piece. -1 " R" -500 (slider-gen rook-table 1) nil))
-(def bqueen  (piece. -1 " Q" -900 (slider-gen queen-table 1) nil))
-(def bking   (piece. -1 " K" -10000 (king-gen black) nil))
+(def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
+(def bknight (piece. -1 " n" -325 (knight-gen black) nil))
+(def bbishop (piece. -1 " b" -350 (slider-gen bishop-table 1) nil))
+(def brook   (piece. -1 " r" -500 (slider-gen rook-table 1) nil))
+(def bqueen  (piece. -1 " q" -900 (slider-gen queen-table 1) nil))
+(def bking   (piece. -1 " k" -10000 (king-gen black) nil))
 
 (def pieces [none wpawn wknight wbishop wrook wqueen wking 
                   bpawn bknight bbishop brook bqueen bking])
 
-(defn char-piece[ch] (first (filter (fn[pc](= ch (get (.name pc) 1))) pieces)))
+(defn char-piece[ch] (first (filter (fn[pc](= ch (get (:name pc) 1))) pieces)))
 
-(def start-board (vec (map char-piece 
-     (str "RNBQKBNR"
-     	  "PPPPPPPP"
-          "        "
-	  "        "
-	  "        "
-          "        "
-          "pppp ppp"
-	  "rnbqkbnr"))))
+(def fen-start "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" )
 
+(defn fen-part[ ch ]
+  (let [pc (char-piece ch)]
+       (if pc [pc]
+	 (if (>= (.indexOf "12345678" (str ch)) 0)
+	     (repeat (read-string (str ch)) none)
+	   []))))
+      
+      
+(defn parse-fen[ fen-string ]
+  (let [[squares to-move castling ep drawmoves halfmoves] (split fen-string #" ")
+        board-squares (vec (mapcat fen-part squares)) ]
+	(board. board-squares
+		(if (= to-move "w") white black)
+		(.indexOf board-squares wking)
+		(.indexOf board-squares bking)
+		(string-to-square ep)
+		false false false false ; parse castling rights 
+		0 0)))
+		
+(def start-board (parse-fen fen-start))      
+
+
+(defn print-board-part[ board [ c r ] ]
+  (let [div ["\n+---+---+---+---+---+---+---+---+\n|"]]
+  (join (concat  (if (= c 0) div [])
+		 [ (:name (board (cr-to-square [c r]))) " |"]
+		 (if (and (= c 7)(= r 7)) div)))))
+
+(defn print-board[ board ]
+  (join (map (partial print-board-part board) squares-coords)))
+		     
+(defmethod print-method board [x ^java.io.Writer writer]
+  (let [w (fn[s](.write writer s))]
+       (w (print-board (:squares start-board)))
+       (w (str "to move:" (if (= (:to-move board) white) "white" "black")))
+       ))
+
+;(defmethod print-method move [x ^java.io.Writer writer]
+;  (print-method (str (square-to-string (:from x)) "-" (square-to-string (:to x))) writer))
+  
+        
 (defn material-balance[ bd ](reduce + (map :value bd)))
+(defn locate[ piece board ](.indexOf (:squares board) piece))
 
-(defn generate-moves[ bd for-side ]
-  (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares))
+(defn generate-moves[ board for-side ]
+  (let [bd (:squares board)]
+       (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares)))
+
+
+(defn perft[ depth bd side ]
+     (if (= depth 0) 1
+       (reduce + (map (fn[mv](perft (dec depth) ((:player mv) bd) (- side))) (generate-moves bd side)))))
 
 (defn -main
   "I don't do a whole lot ... yet."
