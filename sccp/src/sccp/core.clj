@@ -3,7 +3,6 @@
 
 (use '[clojure.string :only (join split)])
 
-
 (defn l[] (use 'sccp.core :reload))
 
 (def white 1)
@@ -16,7 +15,7 @@
 (defn cr-to-square[ [c r] ] (+ c (* r 8)))
 
 (defn square-to-string[ sq ]
-  (if (or (< sq 0)(> sq 63)) "none"
+  (if (or (not sq)(< sq 0)(> sq 63)) "none"
     (let [[c r](square-to-cr sq)]
 	 (str (get cols c) (get rows r)))))
 
@@ -38,20 +37,16 @@
 		  en-pesant
 	          wcq wck bcq bck
                   drawing-moves 
-		  halfmoves])
+		  half-moves])
 
 (def none (piece. 0 "  " 0 #() #(0)))
-
 
 (defn play[ bd move ]
   (let [s1 (:squares bd)
         delta (concat [(:from move) none (:to move) (s1 (:from move))] (:move-assoc move))
         s2 (apply assoc s1 delta)
 	ed (concat ['squares s2] [:to-move (- (:to-move bd)) ] (:extra-assoc move)) ]
-      ;(println delta)
-      ;(print (print-board s2))
-      ;(println ed)
-      (apply assoc bd :squares s2 ed)))
+      (apply assoc bd :squares s2 :en-pesant nil ed)))
 	  
 
 (defmethod print-method move [x ^java.io.Writer writer]
@@ -161,7 +156,6 @@
 (def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
 (def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
        
-
 (defn dummy[bd sq][])
 
 (def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
@@ -192,17 +186,20 @@
 	     (repeat (read-string (str ch)) none)
 	   []))))
       
-      
+(defn parse-int[x]
+  (try (Integer. x) (catch Exception e 0)))
+
 (defn parse-fen[ fen-string ]
-  (let [[squares to-move castling ep drawmoves halfmoves] (split fen-string #" ")
-        board-squares (vec (mapcat fen-part squares)) ]
+  (let [[squares to-move castling ep draw-moves half-moves] (split fen-string #" ")
+        board-squares (vec (mapcat fen-part squares)) 
+	c (fn[ch](not (not (some #{ch} castling)))) ]
 	(board. board-squares
 		(if (= to-move "w") white black)
 		(.indexOf board-squares wking)
 		(.indexOf board-squares bking)
 		(string-to-square ep)
-		false false false false ; parse castling rights 
-		0 0)))
+		(c \K) (c \Q) (c \k) (c \q)  
+		(parse-int draw-moves) (parse-int half-moves))))
 		
 (def start-board (parse-fen fen-start))      
 
@@ -217,11 +214,14 @@
   (join (map (partial print-board-part board) squares-coords)))
 		     
 (defmethod print-method board [x ^java.io.Writer writer]
-  (let [w (fn[s](.write writer s))]
+  (let [w (fn[ & pcs ](let [l (apply str (conj pcs "\n"))](.write writer l)))]
        (w (print-board (:squares x)))
-       (w (str "to move:" (if (= (:to-move x) white) "white" "black") "\n"))
-       (w (str "Kings at : " (mapv square-to-string [(:white-king x)(:black-king x)]) "\n" ))
-       (w (str "En pesant : " (square-to-string (:en-pesant x)) "\n"))
+       (w "to move                 : " (if (= (:to-move x) white) "white" "black"))
+       (w "Kings at                : " (mapv square-to-string [(:white-king x)(:black-king x)]))
+       (w "En pesant               : " (square-to-string (:en-pesant x)))
+       (w "Castles wcq wck bcq bck : " (mapv (fn[f](f x)) [:wcq :wck :bcq :bck]))
+       (w "at move                 : " (:half-moves x))
+       (w "drawbreak moves         : " (:drawing-moves x))
        ))
 
 ;(defmethod print-method move [x ^java.io.Writer writer]
@@ -236,10 +236,18 @@
         for-side (:to-move board)]
        (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares)))
 
-
 (defn perft[ depth bd ]
      (if (= depth 0) 1
        (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd)))))
+
+(defn string-to-move[ line board ]
+  (first (filter (fn[mv](= (print-str mv) line)) (generate-moves board))))
+
+(defn main-loop[ board ]
+  (print board)
+  (flush)
+  (let [mv (string-to-move (read-line) board)]
+       (recur (if mv (play board mv) board))))
 
 (defn -main
   "I don't do a whole lot ... yet."
