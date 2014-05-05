@@ -46,7 +46,7 @@
         delta (concat [(:from move) none (:to move) (s1 (:from move))] (:move-assoc move))
         s2 (apply assoc s1 delta)
 	ed (concat ['squares s2] [:to-move (- (:to-move bd)) ] (:extra-assoc move)) ]
-      (apply assoc bd :squares s2 :en-pesant nil ed)))
+      (apply assoc bd :squares s2 :half-moves (inc (:half-moves bd)) :en-pesant nil ed)))
 	  
 
 (defmethod print-method move [x ^java.io.Writer writer]
@@ -69,15 +69,17 @@
 
 (declare wking bking)
 
+(defn de-coord[ vec ](mapv (fn[x](if (vector? x) (cr-to-square x) x)) vec))
+
 (defn make-simple-move[ from-coord to-coord &{ :keys [extra-board-change extra-struct-change] } ]
   (let [f (cr-to-square from-coord) t (cr-to-square to-coord) ]
        (move. f t 
-	      extra-board-change
+	      (de-coord extra-board-change)
 	      (concat (when (or (= f e1)(= f h1)(= t h1)) ['wkc false])
 		      (when (or (= f e1)(= f a1)(= f a1)) ['wqc false])
 		      (when (or (= f e8)(= f h8)(= t h8)) ['bkc false])
 		      (when (or (= f e8)(= f a8)(= t h8)) ['bqc false])
-		      extra-struct-change
+		      (de-coord extra-struct-change)
 		      ))))
 
 ;
@@ -91,7 +93,7 @@
 (def knight-moves (mapv (partial hopper-moves knight-deltas) squares-coords))
 
 (defn hops-where-dest-not-side[ table side ]
-  (fn[board sq](filter (fn[mv](not= (:side (board (:to mv))) side)) (table sq))))	
+  (fn[board board-squares sq](filter (fn[mv](not= (:side (board-squares (:to mv))) side)) (table sq))))	
 			
 (def knight-gen (partial hops-where-dest-not-side knight-moves))
 
@@ -117,8 +119,8 @@
 (defn ray-until-side[ board ray other ]
   (when (not (empty? ray))
     (let [move (first ray)
-	 there (:side (board (:to move)))]
-	 (if (= there 0) (cons move (ray-until-side board (rest ray) other))
+	  there (:side (board (:to move)))]
+	  (if (= there 0) (cons move (ray-until-side board (rest ray) other))
 	   (if (= there other) [move] [])))))
 
 (def rook-table (make-ray-lookup rook-deltas))
@@ -126,7 +128,7 @@
 (def queen-table (vec (map concat rook-table bishop-table)))
 
 (defn slider-gen[ raytable other ]
-  (fn[board sq](mapcat (fn[ray](ray-until-side board ray other)) (raytable sq))))
+  (fn[board board-squares sq](mapcat (fn[ray](ray-until-side board-squares ray other)) (raytable sq))))
 
 ;
 ; Pawns just have to be difficult! 
@@ -136,22 +138,35 @@
 (defn pawn-moves[ from direc ]
   (let [
     [col row] from
-    simple (cons (make-simple-move from (add-coord from [0 direc]))
-		       (if (or (and (= direc -1) (= row 6))
-			       (and (= direc 1) (= row 1)))
-			   [(make-simple-move from (add-coord from [0 (* 2 direc)]) :extra-struct-change [:en-pesant (cr-to-square (add-coord from [0 direc]))])] []))
-    capts (concat (if (not= (first from) 0) [(make-simple-move from (add-coord from [-1 direc]))] [] )
-		  (if (not= (first from) 7) [(make-simple-move from (add-coord from [1  direc]))] [] ))        
+    pawnmove (fn[ to & r ](apply make-simple-move from to r))
+    simple (cons (pawnmove (add-coord from [0 direc]))
+		       (when (or (and (= direc -1) (= row 6))
+			         (and (= direc 1)  (= row 1)))
+			   [(pawnmove (add-coord from [0 (* 2 direc)]) :extra-struct-change [:en-pesant (add-coord from [0 direc])])]))
+    not-left-border (not= (first from) 0)
+    not-right-border (not= (first from) 7)
+    left-cap (add-coord from [-1 direc]) 
+    right-cap (add-coord from [1  direc])
+    capts (concat (when not-left-border  [(pawnmove left-cap)])
+		  (when not-right-border [(pawnmove right-cap)] )) 
+    ep-move (fn[to][(pawnmove to :extra-board-change [(first to)(second from)] )]) ; :extra-text "ep"
+    eps (when (or (and (= row 3)(= direc -1))
+		  (and (= row 4)(= direc 1)))
+	  (concat (when not-left-border (ep-move left-cap))
+		  (when not-right-border (ep-move right-cap))))
+	   
     ]
-    (if (or (= row 0) (= row 7)) [] (list simple capts))))
+    (if (or (= row 0) (= row 7)) [] (list simple capts eps))))
  
 (defn pawn-move-generator[ capturing table ]
-  (fn[ board sq ] (let [
+  (fn[ board board-squares sq ] (let [
 		    pawn-moves (table sq)
-		    [moves captures] pawn-moves]
+		    [moves captures en-pesants] pawn-moves]
 		    (concat
-		     (take-while (fn[mv](= (board (:to mv)) none)) moves)
-		     (filter (fn[mv](= (:side (board (:to mv))) capturing)) captures)))))
+		     (take-while (fn[mv](= (board-squares (:to mv)) none)) moves)
+		     (filter (fn[mv](= (:side (board-squares (:to mv))) capturing)) captures)
+		     (filter (fn[mv](= (:to mv) (:en-pesant board))) en-pesants)
+		     ))))
 
 (def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
 (def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
@@ -212,11 +227,14 @@
 
 (defn print-board[ board ]
   (join (map (partial print-board-part board) squares-coords)))
-		     
+		  
+(declare generate-moves)
+   
 (defmethod print-method board [x ^java.io.Writer writer]
   (let [w (fn[ & pcs ](let [l (apply str (conj pcs "\n"))](.write writer l)))]
        (w (print-board (:squares x)))
        (w "to move                 : " (if (= (:to-move x) white) "white" "black"))
+       (w "moves                   : " (vec (generate-moves x)))
        (w "Kings at                : " (mapv square-to-string [(:white-king x)(:black-king x)]))
        (w "En pesant               : " (square-to-string (:en-pesant x)))
        (w "Castles wcq wck bcq bck : " (mapv (fn[f](f x)) [:wcq :wck :bcq :bck]))
@@ -232,9 +250,9 @@
 (defn locate[ piece board ](.indexOf (:squares board) piece))
 
 (defn generate-moves[ board ]
-  (let [bd (:squares board)
+  (let [bs (:squares board)
         for-side (:to-move board)]
-       (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) bd sq) [])) bd squares)))
+       (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) board bs sq) [])) bs squares)))
 
 (defn perft[ depth bd ]
      (if (= depth 0) 1
