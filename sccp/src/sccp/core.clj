@@ -49,8 +49,11 @@
       (apply assoc bd :squares s2 :half-moves (inc (:half-moves bd)) :en-pesant nil ed)))
 	  
 
-(defmethod print-method move [x ^java.io.Writer writer]
-  (print-method (str (square-to-string (:from x)) "-" (square-to-string (:to x))) writer))
+(defn move-to-string[ x ] 
+  (str (square-to-string (:from x)) "-" (square-to-string (:to x))))
+	
+;(defmethod print-method move [x ^java.io.Writer writer]
+;  (print-method (move-to-string x) writer))
 
 (def axis (range 8))
 (defn axis-ok[ a ]     (and (>= a 0) (< a 8)))
@@ -146,10 +149,10 @@
     not-left-border (not= (first from) 0)
     not-right-border (not= (first from) 7)
     left-cap (add-coord from [-1 direc]) 
-    right-cap (add-coord from [1  direc])
+    right-cap (add-coord from [1 direc])
     capts (concat (when not-left-border  [(pawnmove left-cap)])
 		  (when not-right-border [(pawnmove right-cap)] )) 
-    ep-move (fn[to][(pawnmove to :extra-board-change [(first to)(second from)] )]) ; :extra-text "ep"
+    ep-move (fn[to][(pawnmove to :extra-board-change [[(first to)(second from)] none] )]) ; :extra-text "ep"
     eps (when (or (and (= row 3)(= direc -1))
 		  (and (= row 4)(= direc 1)))
 	  (concat (when not-left-border (ep-move left-cap))
@@ -259,7 +262,7 @@
        (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd)))))
 
 (defn string-to-move[ line board ]
-  (first (filter (fn[mv](= (print-str mv) line)) (generate-moves board))))
+  (first (filter (fn[mv](= (move-to-string mv) line)) (generate-moves board))))
 
 (defn main-loop[ board ]
   (print board)
@@ -270,4 +273,4 @@
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
-  (println "Let's play chess!!"))
+  (main-loop start-board))
