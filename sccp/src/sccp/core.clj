@@ -49,11 +49,11 @@
       (apply assoc bd :squares s2 :half-moves (inc (:half-moves bd)) :en-pesant nil ed)))
 	  
 
-(defn move-to-string[ x ] 
-  (str (square-to-string (:from x)) "-" (square-to-string (:to x))))
+(defn move-to-string[ x ] (let [e (:extra-text x)]
+  (str (square-to-string (:from x)) "-" (square-to-string (:to x)) (if e e ""))))
 	
-;(defmethod print-method move [x ^java.io.Writer writer]
-;  (print-method (move-to-string x) writer))
+(defmethod print-method move [x ^java.io.Writer writer]
+  (print-method (move-to-string x) writer))
 
 (def axis (range 8))
 (defn axis-ok[ a ]     (and (>= a 0) (< a 8)))
@@ -136,8 +136,16 @@
 ;
 ; Pawns just have to be difficult! 
 ; 3 pawn move vectors per square, one for forward moves, one for captures, one for en pesants 
-; TODO: deal with en pesant 
-; TODO: promotion
+(declare wqueen wrook wbishop wknight bqueen brook bbishop bknight) ; need these for promotion
+
+(defn promotify[ pawn-moves ]
+  (mapcat (fn[move](let [to (:to move)
+		         func (fn[pc] (assoc move :move-assoc [to pc] :extra-text (str "=" (subs (:name pc) 1))) ) ]
+	    (cond
+	     (< to a7) (map func [wqueen wrook wbishop wknight])
+	     (> to h2) (map func [bqueen brook bbishop bknight])
+	     :else [move]))) pawn-moves))	     
+		   
 (defn pawn-moves[ from direc ]
   (let [
     [col row] from
@@ -156,10 +164,8 @@
     eps (when (or (and (= row 3)(= direc -1))
 		  (and (= row 4)(= direc 1)))
 	  (concat (when not-left-border (ep-move left-cap))
-		  (when not-right-border (ep-move right-cap))))
-	   
-    ]
-    (if (or (= row 0) (= row 7)) [] (list simple capts eps))))
+		  (when not-right-border (ep-move right-cap))))	  ]
+    (if (or (= row 0) (= row 7)) [] (list (promotify simple) (promotify capts) eps))))
  
 (defn pawn-move-generator[ capturing table ]
   (fn[ board board-squares sq ] (let [
@@ -171,31 +177,31 @@
 		     (filter (fn[mv](= (:to mv) (:en-pesant board))) en-pesants)
 		     ))))
 
-(def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
-(def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
-       
-(defn dummy[bd sq][])
-
-(def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
 (def wknight (piece. 1 " N" 325 (knight-gen white) nil))
 (def wbishop (piece. 1 " B" 350 (slider-gen bishop-table -1) nil))
 (def wrook   (piece. 1 " R" 500 (slider-gen rook-table -1) nil))
 (def wqueen  (piece. 1 " Q" 900 (slider-gen queen-table -1) nil))
 (def wking   (piece. 1 " K" 10000 (king-gen white) nil))
 
-(def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
+
 (def bknight (piece. -1 " n" -325 (knight-gen black) nil))
 (def bbishop (piece. -1 " b" -350 (slider-gen bishop-table 1) nil))
 (def brook   (piece. -1 " r" -500 (slider-gen rook-table 1) nil))
 (def bqueen  (piece. -1 " q" -900 (slider-gen queen-table 1) nil))
 (def bking   (piece. -1 " k" -10000 (king-gen black) nil))
 
+(def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
+(def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
+       
+(def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
+(def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
+
 (def pieces [none wpawn wknight wbishop wrook wqueen wking 
                   bpawn bknight bbishop brook bqueen bking])
 
 (defn char-piece[ch] (first (filter (fn[pc](= ch (get (:name pc) 1))) pieces)))
 
-(def fen-start "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" )
+(def fen-start "rnbqkbnr/pppPpppp/8/8/8/8/PPPPpPPP/RNBQKBNR w KQkq - 0 1" )
 
 (defn fen-part[ ch ]
   (let [pc (char-piece ch)]
