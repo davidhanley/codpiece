@@ -228,11 +228,10 @@
 (def start-board (parse-fen fen-start))      
 
 (defn print-board-part[ board [ c r ] ]
-  (let [div ["\n+---+---+---+---+---+---+---+---+\n"]]
-  (join (concat  (when (= c 0) div)
-		 (when (= c 0) "|")
-		 [ (:name (board (cr-to-square [c r]))) " |"]
-		 (when (and (= c 7)(= r 7)) div)))))
+  (let [div "\n+---+---+---+---+---+---+---+---+\n"]
+  (join (str  (when (= c 0) (str div "|"))
+	      (:name (board (cr-to-square [c r]))) " |"
+	      (when (and (= c 7)(= r 7)) div)))))
 
 (defn print-board[ board ]
   (join (map (partial print-board-part board) squares-coords)))
