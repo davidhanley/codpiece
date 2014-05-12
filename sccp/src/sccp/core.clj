@@ -70,7 +70,8 @@
 (defn simple-play[ f t ]
   (fn [board] (assoc board f none t (board f))))
 
-(declare wking bking)
+(declare wking wqueen wrook wbishop wknight wpawn  
+         bking bqueen brook bbishop bknight bpawn)
 
 (defn de-coord[ vec ](mapv (fn[x](if (vector? x) (cr-to-square x) x)) vec))
 
@@ -100,9 +101,6 @@
 			
 (def knight-gen (partial hops-where-dest-not-side knight-moves))
 
-(def king-moves (mapv (partial hopper-moves king-deltas) squares-coords))
-
-(def king-gen (partial hops-where-dest-not-side king-moves))
 
 ;
 ; Now make moves for the "sliding" pieces such as bishops, rooks, queens
@@ -136,7 +134,6 @@
 ;
 ; Pawns just have to be difficult! 
 ; 3 pawn move vectors per square, one for forward moves, one for captures, one for en pesants 
-(declare wqueen wrook wbishop wknight bqueen brook bbishop bknight) ; need these for promotion
 
 (defn promotify[ pawn-moves ]
   (mapcat (fn[move](let [to (:to move)
@@ -177,6 +174,26 @@
 		     (filter (fn[mv](= (:to mv) (:en-pesant board))) en-pesants)
 		     ))))
 
+(def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
+(def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
+
+(def king-moves (mapv (partial hopper-moves king-deltas) squares-coords))
+
+; we need to discover if a square is attacked 
+
+(defn attacks-with[ sq diag-sliders vert-sliders knight king pawn pawn-captures ]
+ )
+
+(defn attacks[ side sq ]
+  (if (= side white)
+      (attacks-with sq [wqueen wrook] [wqueen wbishop] wknight wking wpawn white-pawn-moves)
+      (attacks-with sq [bqueen brook] [bqueen bbishop] bknight bking bpawn black-pawn-moves)))
+  
+(
+
+(def king-gen (partial hops-where-dest-not-side king-moves))
+
+
 (def wknight (piece. 1 " N" 325 (knight-gen white) nil))
 (def wbishop (piece. 1 " B" 350 (slider-gen bishop-table -1) nil))
 (def wrook   (piece. 1 " R" 500 (slider-gen rook-table -1) nil))
@@ -189,9 +206,6 @@
 (def brook   (piece. -1 " r" -500 (slider-gen rook-table 1) nil))
 (def bqueen  (piece. -1 " q" -900 (slider-gen queen-table 1) nil))
 (def bking   (piece. -1 " k" -10000 (king-gen black) nil))
-
-(def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
-(def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
        
 (def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
 (def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
@@ -201,7 +215,7 @@
 
 (defn char-piece[ch] (first (filter (fn[pc](= ch (get (:name pc) 1))) pieces)))
 
-(def fen-start "rnbqkbnr/pppPpppp/8/8/8/8/PPPPpPPP/RNBQKBNR w KQkq - 0 1" )
+(def fen-start "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" )
 
 (defn fen-part[ ch ]
   (let [pc (char-piece ch)]
@@ -229,10 +243,8 @@
 
 (defn print-board[ board ]
   (let [div "\n+---+---+---+---+---+---+---+---+\n"
-        pbs (fn[[c r]](join (str  (when (= c 0) (str div "|"))
-	      (:name (board (cr-to-square [c r]))) " |"
-	      (when (and (= c 7)(= r 7)) div)))) ] 
-  (join (map pbs squares-coords))))
+        pbs (fn[[c r]](str (when (= c 0) (str div "|")) (:name (board (cr-to-square [c r]))) " |" )) ] 
+  (join (conj (mapv pbs squares-coords) div))))
 		  
 (declare generate-moves)
    
