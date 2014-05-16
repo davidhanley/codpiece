@@ -101,7 +101,6 @@
 			
 (def knight-gen (partial hops-where-dest-not-side knight-moves))
 
-
 ;
 ; Now make moves for the "sliding" pieces such as bishops, rooks, queens
 
@@ -177,19 +176,40 @@
 (def white-pawn-moves (mapv (fn[sq](pawn-moves sq -1)) squares-coords))
 (def black-pawn-moves (mapv (fn[sq](pawn-moves sq  1)) squares-coords))
 
+(def white-pawn-captures (mapv second white-pawn-moves))
+(def black-pawn-captures (mapv second black-pawn-moves))
+
 (def king-moves (mapv (partial hopper-moves king-deltas) squares-coords))
 
 ; we need to discover if a square is attacked 
 
-(defn attacks-with[ sq diag-sliders vert-sliders knight king pawn pawn-captures ]
- )
+(defn move-ray-ends-with[ squares ray pcs ]
+  (if (= ray []) false
+    (let [mv (first ray)
+	  target (squares (:to mv)) ]
+	  (if (= target none) (move-ray-ends-with squares (rest ray) pcs)
+	    (not= (.indexOf pcs target) -1)))))
 
-(defn attacks[ side sq ]
-  (if (= side white)
-      (attacks-with sq [wqueen wrook] [wqueen wbishop] wknight wking wpawn white-pawn-moves)
-      (attacks-with sq [bqueen brook] [bqueen bbishop] bknight bking bpawn black-pawn-moves)))
-  
-(
+(defn attacks-with[ board sq diag-sliders vert-sliders knight king pawn pawn-captures ]
+  (let [squares (:squares board)
+        slider-attacks (fn[ table pcs](some (fn[ ray ]( move-ray-ends-with squares ray pcs)) (table sq)))
+	hopper-attacks (fn[table pc](some (fn[ mv ](= (squares (:to mv)) pc)) (table sq))) ]
+       (or (slider-attacks bishop-table  diag-sliders)
+	   (slider-attacks rook-table    vert-sliders)
+	   (hopper-attacks knight-moves  knight)
+	   (hopper-attacks king-moves    king)
+	   (hopper-attacks pawn-captures pawn))))
+
+(defn white-attacks[ board sq ]
+  (attacks-with board sq [wbishop wqueen] [wrook wqueen] wknight wking wpawn black-pawn-captures))
+
+(defn black-attacks[ board sq ]
+  (attacks-with board sq [bbishop bqueen] [brook bqueen] bknight bking bpawn white-pawn-captures))
+
+(defn to-move-can-capture-king[ board ]
+  (if (= (:to-move board) black)
+      (black-attacks board (:white-king board))
+      (white-attacks board (:black-king board))))
 
 (def king-gen (partial hops-where-dest-not-side king-moves))
 
@@ -230,12 +250,11 @@
 (defn parse-fen[ fen-string ]
   (let [[squares to-move castling ep draw-moves half-moves] (split fen-string #" ")
         board-squares (vec (mapcat fen-part squares)) 
-	c (fn[ch](not (not (some #{ch} castling)))) ]
+	c (fn[ch](not (not (some #{ch} castling)))) 
+	where (fn[pc](.indexOf board-squares pc))]
 	(board. board-squares
 		(if (= to-move "w") white black)
-		(.indexOf board-squares wking)
-		(.indexOf board-squares bking)
-		(string-to-square ep)
+		(where wking) (where bking)  (string-to-square ep)
 		(c \K) (c \Q) (c \k) (c \q)  
 		(parse-int draw-moves) (parse-int half-moves))))
 		
@@ -273,8 +292,10 @@
        (mapcat (fn[pc sq](if (= for-side (:side pc)) ((:generator pc) board bs sq) [])) bs squares)))
 
 (defn perft[ depth bd ]
-     (if (= depth 0) 1
-       (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd)))))
+  (if (to-move-can-capture-king bd)
+      0 ; (do (print bd) 0)
+    (if (= depth 0) 1
+      (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd))))))
 
 (defn string-to-move[ line board ]
   (first (filter (fn[mv](= (move-to-string mv) line)) (generate-moves board))))
