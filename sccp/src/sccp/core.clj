@@ -52,8 +52,8 @@
 (defn move-to-string[ x ] (let [e (:extra-text x)]
   (str (square-to-string (:from x)) "-" (square-to-string (:to x)) (if e e ""))))
 	
-(defmethod print-method move [x ^java.io.Writer writer]
-  (print-method (move-to-string x) writer))
+;(defmethod print-method move [x ^java.io.Writer writer]
+;  (print-method (move-to-string x) writer))
 
 (def axis (range 8))
 (defn axis-ok[ a ]     (and (>= a 0) (< a 8)))
@@ -90,9 +90,7 @@
 ; Make moves for the "hopping" pieces such as knights and kings
 
 (defn hopper-moves[ deltas coord  ] 
-  (map (fn [to] (make-simple-move coord to)) (hopper-to coord deltas)))
-
-;(defn mapv[ fn seq ](vec (map fn seq)))
+  (mapv (fn [to] (make-simple-move coord to)) (hopper-to coord deltas)))
 
 (def knight-moves (mapv (partial hopper-moves knight-deltas) squares-coords))
 
@@ -179,7 +177,11 @@
 (def white-pawn-captures (mapv second white-pawn-moves))
 (def black-pawn-captures (mapv second black-pawn-moves))
 
-(def king-moves (mapv (partial hopper-moves king-deltas) squares-coords))
+(defn make-king-move[ king sq ] 
+      (mapv (fn[mv](assoc mv :extra-assoc [king (:to mv)])) (hopper-moves king-deltas sq)))
+ 
+(def white-king-moves (mapv (partial make-king-move :white-king) squares-coords))
+(def black-king-moves (mapv (partial make-king-move :black-king) squares-coords))
 
 ; we need to discover if a square is attacked 
 
@@ -197,7 +199,7 @@
        (or (slider-attacks bishop-table  diag-sliders)
 	   (slider-attacks rook-table    vert-sliders)
 	   (hopper-attacks knight-moves  knight)
-	   (hopper-attacks king-moves    king)
+	   (hopper-attacks white-king-moves    king)
 	   (hopper-attacks pawn-captures pawn))))
 
 (defn white-attacks[ board sq ]
@@ -207,25 +209,27 @@
   (attacks-with board sq [bbishop bqueen] [brook bqueen] bknight bking bpawn white-pawn-captures))
 
 (defn to-move-can-capture-king[ board ]
+  (assert (= (:white-king board) (.indexOf (:squares board) wking)))
+  (assert (= (:black-king board) (.indexOf (:squares board) bking)))
   (if (= (:to-move board) black)
       (black-attacks board (:white-king board))
       (white-attacks board (:black-king board))))
 
-(def king-gen (partial hops-where-dest-not-side king-moves))
-
+(def white-king-gen (partial hops-where-dest-not-side white-king-moves))
+(def black-king-gen (partial hops-where-dest-not-side black-king-moves))
 
 (def wknight (piece. 1 " N" 325 (knight-gen white) nil))
 (def wbishop (piece. 1 " B" 350 (slider-gen bishop-table -1) nil))
 (def wrook   (piece. 1 " R" 500 (slider-gen rook-table -1) nil))
 (def wqueen  (piece. 1 " Q" 900 (slider-gen queen-table -1) nil))
-(def wking   (piece. 1 " K" 10000 (king-gen white) nil))
+(def wking   (piece. 1 " K" 10000 (white-king-gen white) nil))
 
 
 (def bknight (piece. -1 " n" -325 (knight-gen black) nil))
 (def bbishop (piece. -1 " b" -350 (slider-gen bishop-table 1) nil))
 (def brook   (piece. -1 " r" -500 (slider-gen rook-table 1) nil))
 (def bqueen  (piece. -1 " q" -900 (slider-gen queen-table 1) nil))
-(def bking   (piece. -1 " k" -10000 (king-gen black) nil))
+(def bking   (piece. -1 " k" -10000 (black-king-gen black) nil))
        
 (def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
 (def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
@@ -252,6 +256,7 @@
         board-squares (vec (mapcat fen-part squares)) 
 	c (fn[ch](not (not (some #{ch} castling)))) 
 	where (fn[pc](.indexOf board-squares pc))]
+	;(print ("TM:" to-move))
 	(board. board-squares
 		(if (= to-move "w") white black)
 		(where wking) (where bking)  (string-to-square ep)
