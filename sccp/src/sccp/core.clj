@@ -1,7 +1,7 @@
 (ns sccp.core
     (:gen-class))
 
-(use '[clojure.string :only (join split)])
+(use '[clojure.string :only (join split upper-case)])
 
 (defn l[] (use 'sccp.core :reload))
 
@@ -177,8 +177,10 @@
 (def white-pawn-captures (mapv second white-pawn-moves))
 (def black-pawn-captures (mapv second black-pawn-moves))
 
+(defn add-assoc-to-slot[ struct slot extra ] (assoc struct slot (concat (slot struct) extra)))
+
 (defn make-king-move[ king sq ] 
-      (mapv (fn[mv](assoc mv :extra-assoc [king (:to mv)])) (hopper-moves king-deltas sq)))
+      (mapv (fn[mv] (add-assoc-to-slot mv :extra-assoc [king (:to mv)])) (hopper-moves king-deltas sq)))
  
 (def white-king-moves (mapv (partial make-king-move :white-king) squares-coords))
 (def black-king-moves (mapv (partial make-king-move :black-king) squares-coords))
@@ -209,8 +211,8 @@
   (attacks-with board sq [bbishop bqueen] [brook bqueen] bknight bking bpawn white-pawn-captures))
 
 (defn to-move-can-capture-king[ board ]
-  (assert (= (:white-king board) (.indexOf (:squares board) wking)))
-  (assert (= (:black-king board) (.indexOf (:squares board) bking)))
+  ;(assert (= (:white-king board) (.indexOf (:squares board) wking)))
+  ;(assert (= (:black-king board) (.indexOf (:squares board) bking)))
   (if (= (:to-move board) black)
       (black-attacks board (:white-king board))
       (white-attacks board (:black-king board))))
@@ -256,7 +258,6 @@
         board-squares (vec (mapcat fen-part squares)) 
 	c (fn[ch](not (not (some #{ch} castling)))) 
 	where (fn[pc](.indexOf board-squares pc))]
-	;(print ("TM:" to-move))
 	(board. board-squares
 		(if (= to-move "w") white black)
 		(where wking) (where bking)  (string-to-square ep)
@@ -298,7 +299,7 @@
 
 (defn perft[ depth bd ]
   (if (to-move-can-capture-king bd)
-      0 ; (do (print bd) 0)
+      0 
     (if (= depth 0) 1
       (reduce + (map (fn[mv](perft (dec depth) (play bd mv))) (generate-moves bd))))))
 
@@ -315,3 +316,4 @@
   "I don't do a whole lot ... yet."
   [& args]
   (main-loop start-board))
+
