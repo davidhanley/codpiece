@@ -180,7 +180,7 @@
 (defn add-assoc-to-slot[ struct slot extra ] (assoc struct slot (concat (slot struct) extra)))
 
 (defn make-king-move[ king sq ] 
-      (mapv (fn[mv] (add-assoc-to-slot mv :extra-assoc [king (:to mv)])) (hopper-moves king-deltas sq)))
+  (mapv (fn[mv] (add-assoc-to-slot mv :extra-assoc [king (:to mv)])) (hopper-moves king-deltas sq)))
  
 (def white-king-moves (mapv (partial make-king-move :white-king) squares-coords))
 (def black-king-moves (mapv (partial make-king-move :black-king) squares-coords))
@@ -217,21 +217,32 @@
       (black-attacks board (:white-king board))
       (white-attacks board (:black-king board))))
 
-(def white-king-gen (partial hops-where-dest-not-side white-king-moves))
-(def black-king-gen (partial hops-where-dest-not-side black-king-moves))
+(def white-kingside-castle (make-simple-move [4 7] [6 7] :extra-board-change [h1 none f1 wrook g1 wking]))
+(def white-queenside-castle (make-simple-move [4 7] [2 7] :extra-board-change [a1 none c1 wking d1 wrook]))
+(def black-kingside-castle (make-simple-move [4 0] [6 0] :extra-board-change [h8 none f8 brook g8 bking]))
+(def black-queenside-castle (make-simple-move [4 0] [2 0] :extra-board-change [a1 none c8 bking d8 brook]))
+
+(defn white-castles[board bs sq]
+  (let [empty? (fn[sq](= (bs sq) none))]
+       (concat
+	(when (and (:wkc board) (empty? f1) (empty? g1)) [kingside-castle])
+	(when (and (:wkc board) (empty? d1) (empty? c1) (empty? b1)) [queenside-castle]))))
+
+(def white-king-gen (hops-where-dest-not-side white-king-moves white))
+(def black-king-gen (hops-where-dest-not-side black-king-moves black))
 
 (def wknight (piece. 1 " N" 325 (knight-gen white) nil))
 (def wbishop (piece. 1 " B" 350 (slider-gen bishop-table -1) nil))
 (def wrook   (piece. 1 " R" 500 (slider-gen rook-table -1) nil))
 (def wqueen  (piece. 1 " Q" 900 (slider-gen queen-table -1) nil))
-(def wking   (piece. 1 " K" 10000 (white-king-gen white) nil))
+(def wking   (piece. 1 " K" 10000 white-king-gen nil))
 
 
 (def bknight (piece. -1 " n" -325 (knight-gen black) nil))
 (def bbishop (piece. -1 " b" -350 (slider-gen bishop-table 1) nil))
 (def brook   (piece. -1 " r" -500 (slider-gen rook-table 1) nil))
 (def bqueen  (piece. -1 " q" -900 (slider-gen queen-table 1) nil))
-(def bking   (piece. -1 " k" -10000 (black-king-gen black) nil))
+(def bking   (piece. -1 " k" -10000 black-king-gen nil))
        
 (def bpawn   (piece. -1 " p" -100 (pawn-move-generator 1 black-pawn-moves) nil))
 (def wpawn   (piece. 1 " P" 100 (pawn-move-generator -1 white-pawn-moves) nil))
