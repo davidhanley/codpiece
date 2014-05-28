@@ -225,8 +225,8 @@
 (defn white-castles[board bs sq]
   (let [empty? (fn[sq](= (bs sq) none))]
        (concat
-	(when (and (:wkc board) (empty? f1) (empty? g1)) [kingside-castle])
-	(when (and (:wkc board) (empty? d1) (empty? c1) (empty? b1)) [queenside-castle]))))
+	(when (and (:wkc board) (empty? f1) (empty? g1)) [white-kingside-castle])
+	(when (and (:wkc board) (empty? d1) (empty? c1) (empty? b1)) [white-queenside-castle]))))
 
 (def white-king-gen (hops-where-dest-not-side white-king-moves white))
 (def black-king-gen (hops-where-dest-not-side black-king-moves black))
