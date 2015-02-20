@@ -3,12 +3,6 @@
 -- By David Hanley ( ctchrinthy@gmail.com ) davidhanley.org
 -- this sets up the pieces, plays legal moves, and can do efficient tree searches to choose the best move
 
--- to do:
--- en pesant
--- castling
--- promotion
--- pawn structure 
-
 import Data.Array
 import Data.List
 import Data.Maybe 
