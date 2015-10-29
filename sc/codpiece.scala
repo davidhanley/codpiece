@@ -1,3 +1,4 @@
+import scala.util._
 
 object Codpiece {
 
@@ -105,7 +106,7 @@ object Codpiece {
   def startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   def fromFEN(fenStr: String): Board = {
-    val Array(pieces, toMoveTok, castlingRights, ep_square, halfmove_clock, fullmoves) = fenStr.split(' ')
+    val Array(pieces, toMoveTok, castlingRights, ep_square_str, halfmove_clock, fullmoves) = fenStr.split(' ')
     def charToPieces(ch: Char): List[Piece] = {
       val pm = charToPiece("" + ch)
       pm match {
@@ -124,7 +125,11 @@ object Codpiece {
       case "b" => -1
     }
 
-    val board = Board(pieceSquares.map(_=>empty).toArray, toMove, castlingRights.toSet, -1,0,0,0,0,0)
+    val ep_square:Int = Try(ep_square_str.toInt) match { case None=> -1; case Some(i:Int) => i }
+
+    val board = Board(pieceSquares.map(_=>empty).toArray, toMove, castlingRights.toSet, ep_square,0,0,0,0,0)
+
+
 
     pieceSquares.zipWithIndex.map({case(p,sq)=>if (p!=empty) board(sq)=p})
 
