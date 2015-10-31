@@ -1,3 +1,5 @@
+package codpiece
+
 import scala.util._
 
 object Codpiece {
@@ -12,23 +14,80 @@ object Codpiece {
 
   val r = scala.util.Random
 
-  case class Coord(r:Int,f:Int) {
-    def Coord(sq:Int) = new Coord(sq/8,sq%8)
-    def toSquare = r * 8 + f
-  }
-
-
   //basic piece definitions
   case class Piece(glyph: String, side: Int, value: Int) {
     val hashes = squares.map( x => r.nextLong() )
   }
 
-
-  /*class hoppingPiece(glyph: String, side: Int, value: Int) extends Piece(glyph, side, value) {
-    def generateMoves( board: Board ):Seq[Move] = {
-
+  case class Move(from: Int, to: Int) {
+    def play(board: Board): Unit = {
+      board(to) = board(from)
+      board(from) = empty
+      board.castlingRight = castlingImpact(board.castlingRight)
     }
-  }*/
+
+    def castlingImpact(rights: Set[Char]): Set[Char] = {
+      (from, to) match {
+        case (`e8`, _) => rights - 'K' - 'Q'
+        case (`e1`, _) => rights - 'k' - 'q'
+        case (_, `a1`) => rights - 'Q'
+        case (_, `h1`) => rights - 'K'
+        case (_, `a8`) => rights - 'q'
+        case (_, `h8`) => rights - 'k'
+        case (_, _) => rights
+      }
+    }
+
+    def toStrings():Seq[String] = {
+      Seq(squareToString(from)+squareToString(to))
+    }
+
+    override def toString() = {
+      toStrings()(0)
+    }
+  }
+
+  case class C(r:Int, f:Int) {
+    def +(that:C) = C( r + that.r , f + that.f )
+    def *(mult:Int)  = C( r*mult, f * mult )
+    def toSquare() = r * 8 + f
+    def is_valid() = r >= 0 && r < 8 && f >= 0 && f < 8
+  }
+
+  object C { def fromSquare(sq:Int) = C(sq/8,sq%8) }
+
+  val coords = squares.map( C.fromSquare(_))
+
+  def coordsToMove( from:C , to:C ) = new Move( from.toSquare() , to.toSquare() )
+
+  def genHopper( source:C , deltas:Seq[C]) =
+    deltas.map(source+_).filter(_.is_valid).map(coordsToMove(source,_))
+
+  val knightDeltas = Array( C(-2,1), C(-2,-1), C(-1,-2), C(-1,2), C(1,-2), C(1,2), C(2,-1), C(2,1))
+  val kingDeltas = Array( C(-1,-1), C(-1,0), C(-1,1), C(0,-1), C(0,1), C(1,-1), C(1,0), C(1,1))
+
+  val knightMoveLookup = coords.map( genHopper( _ , knightDeltas))
+  val kingMoveLookup = coords.map( genHopper( _ , kingDeltas))
+
+  def hopperGen(lookup:Seq[Seq[Move]])(b:Board, sq:Int, forSide:Int) =
+    lookup(sq).filter((mv:Move)=>b(mv.to).side != forSide)
+
+  def knightMoveGen = hopperGen(knightMoveLookup) _
+  def kingMoveGen = hopperGen(kingMoveLookup) _
+
+  def genSlideRay(source:C, delta:C) =
+    (1 to 8).map(source+delta*_).filter(_.is_valid).map(coordsToMove(source,_))
+
+  def genSlideRays(source:C, deltas:Seq[C]) = deltas.map(genSlideRay(source,_))
+
+  val bishopDeltas = Array( C(-1,-1), C(-1,1), C(1,-1), C(1,1) )
+  val rookDeltas = Array( C(-1,0), C(1,0), C(0,-1), C(0,1) )
+
+  val bishopMoveLookup = coords.map( genSlideRays(_,bishopDeltas))
+  val rookMoveLookup = coords.map( genSlideRays(_,rookDeltas))
+  val queenMoveLookup = coords.map( genSlideRays(_,bishopDeltas++rookDeltas))
+
+
 
   val empty = Piece(" ", 0, 0)
 
@@ -39,12 +98,12 @@ object Codpiece {
   val wQueen = Piece("Q", 1, 900)
   val wKing = Piece("K", 1, 10000)
 
-  val bPawn = Piece("p", 1, -100)
-  val bKnight = Piece("n", 1, -325)
-  val bBishop = Piece("b", 1, -350)
-  val bRook = Piece("r", 1, -500)
-  val bQueen = Piece("q", 1, -900)
-  val bKing = Piece("k", 1, -10000)
+  val bPawn = Piece("p", -1, -100)
+  val bKnight = Piece("n", -1, -325)
+  val bBishop = Piece("b", -1, -350)
+  val bRook = Piece("r", -1, -500)
+  val bQueen = Piece("q", -1, -900)
+  val bKing = Piece("k", -1, -10000)
 
   val pieces = List(
     empty,
@@ -161,33 +220,7 @@ object Codpiece {
   val (a8, e8, h8) = (0, 4, 7)
   val (a1, e1, h1) = (56, 60, 63)
 
-  class Move(from: Int, to: Int) {
-    def play(board: Board): Unit = {
-      board(to) = board(from)
-      board(from) = empty
-      board.castlingRight = castlingImpact(board.castlingRight)
-    }
 
-    def castlingImpact(rights: Set[Char]): Set[Char] = {
-      (from, to) match {
-        case (`e8`, _) => rights - 'K' - 'Q'
-        case (`e1`, _) => rights - 'k' - 'q'
-        case (_, `a1`) => rights - 'Q'
-        case (_, `h1`) => rights - 'K'
-        case (_, `a8`) => rights - 'q'
-        case (_, `h8`) => rights - 'k'
-        case (_, _) => rights
-      }
-    }
-
-    def toStrings():Seq[String] = {
-      Seq(squareToString(from)+squareToString(to))
-    }
-
-    override def toString() = {
-      toStrings()(0)
-    }
-  }
 
   class PromotionMove(from: Int, to: Int, promotesTo: Piece) extends Move(from, to) {
 
@@ -200,7 +233,6 @@ object Codpiece {
       toStrings.map( _ + "=" + promotesTo.glyph(0))
     }
   }
-
 
 
 }
