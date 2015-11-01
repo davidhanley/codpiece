@@ -112,7 +112,9 @@ class UserActionTest extends FlatSpec with Matchers {
     Codpiece.freeAndClear(1,Codpiece.g1)(b2) shouldBe true
     Codpiece.freeAndClear(1,Codpiece.f1)(b2) shouldBe false
     Codpiece.freeAndClear(1,Codpiece.f1,Codpiece.g1)(b2) shouldBe false
+    println(b2)
     val castleMoves = Codpiece.whiteCastle(b2)
+    println( castleMoves )
     castleMoves.length shouldBe 0
 
     b2(Codpiece.f1) = Codpiece.empty
@@ -177,10 +179,10 @@ class UserActionTest extends FlatSpec with Matchers {
   def perft( b:Codpiece.Board, depth:Int ):Int = {
     if (depth==0) 1 else
     {
-      println(b)
+      //println(b)
 
        val moves = Codpiece.moveGen(b)
-      println(moves)
+      //println(moves)
        moves.map(m=>perft(Codpiece.play(b,m),depth-1) ).reduce( _ + _ )
     }
   }
@@ -191,9 +193,9 @@ class UserActionTest extends FlatSpec with Matchers {
     perft(b,1) shouldBe 20
     perft(b,2) shouldBe 400
     perft(b,3) shouldBe 8902
-    perft(b,4) shouldBe 197281
-    perft(b,5) shouldBe 4865609
-    perft(b,6) shouldBe 119060324
+    //perft(b,4) shouldBe 197281
+    //perft(b,5) shouldBe 4865609
+    //perft(b,6) shouldBe 119060324
 
   }
 }

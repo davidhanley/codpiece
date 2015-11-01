@@ -95,19 +95,24 @@ object Codpiece {
     false
   }
 
-  def freeAndClear( side:Int, squares:Int* )( implicit board:Board ):Boolean =
-    squares.forall(board(_)==empty) && squares.forall(sideAttacks(_,side)==false)
+  def freeAndClear( side:Int, squares:Int* )( implicit board:Board ):Boolean = {
+    //println(board)
+    //println(squares)
+    val r = squares.forall(sq=>board(sq) == empty) && squares.forall(sideAttacks(_, side) == false)
+    //println(r)
+    r
+  }
 
   //TODO: this is kinda gross. Fix it
   def whiteCastle(implicit b:Board):Seq[Move]= {
-    val wkc = if (b.castlingRight('K') && freeAndClear(f1,g1)) Some(whiteKingsideCastle) else None
-    val wqc = None//if (b.castlingRight('Q') && freeAndClear(d1,c1) && b(b1)==empty ) Some(whiteQueensideCastle) else None
+    val wkc = if (b.castlingRight('K') && freeAndClear(1,f1,g1)) Some(whiteKingsideCastle) else None
+    val wqc = if (b.castlingRight('Q') && freeAndClear(1,d1,c1) && b(b1)==empty ) Some(whiteQueensideCastle) else None
     List(wkc,wqc).flatMap(f=>f)
   }
 
   def blackCastle(implicit b:Board):Seq[Move]= {
-    val bkc = if (b.castlingRight('k') && freeAndClear(f8,g8)) Some(blackKingsideCastle) else None
-    val bqc = if (b.castlingRight('q') && freeAndClear(d8,c8) && b(b8)==empty ) Some(blackQueensideCastle) else None
+    val bkc = if (b.castlingRight('k') && freeAndClear(-1,f8,g8)) Some(blackKingsideCastle) else None
+    val bqc = if (b.castlingRight('q') && freeAndClear(-1,d8,c8) && b(b8)==empty ) Some(blackQueensideCastle) else None
     List(bkc,bqc).flatMap(f=>f)
   }
 
