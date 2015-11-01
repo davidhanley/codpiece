@@ -1,7 +1,5 @@
 
-import java.sql.SQLClientInfoException
 
-import scala.collection.immutable
 import scala.util._
 
 object Codpiece {
@@ -21,8 +19,9 @@ object Codpiece {
 
   def fileToChar(f: Int) = "abcdefgh"(f)
 
-  def getRank(sq:Int) = sq/8
-  def getFile(sq:Int) = sq%8
+  def getRank(sq: Int) = sq / 8
+
+  def getFile(sq: Int) = sq % 8
 
   def squareToString(sq: Int) = "" + fileToChar(getFile(sq)) + rankToChar(getRank(sq))
 
@@ -33,8 +32,6 @@ object Codpiece {
       board(to) = board(from)
       board(from) = empty
     }
-
-
 
     def toStrings(): Seq[String] = {
       Seq(squareToString(from) + squareToString(to))
@@ -77,43 +74,38 @@ object Codpiece {
 
   def knightMoveGen = hopperGen(knightMoveLookup) _
 
-  class CastlingMove(from:Int, to:Int, rookFrom:Int, rookTo:Int) extends Move(from, to) {
-    override def play(b:Board): Unit = {
+  class CastlingMove(from: Int, to: Int, rookFrom: Int, rookTo: Int) extends Move(from, to) {
+    override def play(b: Board): Unit = {
       super.play(b)
-      b(rookTo)=b(rookFrom)
-      b(rookFrom)=empty
+      b(rookTo) = b(rookFrom)
+      b(rookFrom) = empty
     }
   }
 
-  val whiteKingsideCastle = new CastlingMove(e1,g1,h1,f1)
-  val whiteQueensideCastle = new CastlingMove(e1,c1,a1,d1)
-  val blackKingsideCastle = new CastlingMove(e8,g8,h8,f8)
-  val blackQueensideCastle = new CastlingMove(e8,c8,a8,d8)
+  val whiteKingsideCastle = new CastlingMove(e1, g1, h1, f1)
+  val whiteQueensideCastle = new CastlingMove(e1, c1, a1, d1)
+  val blackKingsideCastle = new CastlingMove(e8, g8, h8, f8)
+  val blackQueensideCastle = new CastlingMove(e8, c8, a8, d8)
 
   //TODO:fill this in
-  def sideAttacks(sq:Int, side:Int)(implicit board:Board) = {
+  def sideAttacks(sq: Int, side: Int)(implicit board: Board) = {
     false
   }
 
-  def freeAndClear( side:Int, squares:Int* )( implicit board:Board ):Boolean = {
-    //println(board)
-    //println(squares)
-    val r = squares.forall(sq=>board(sq) == empty) && squares.forall(sideAttacks(_, side) == false)
-    //println(r)
-    r
-  }
+  def freeAndClear(side: Int, squares: Int*)(implicit board: Board): Boolean =
+    squares.forall(sq => board(sq) == empty) && squares.forall(sideAttacks(_, side) == false)
 
   //TODO: this is kinda gross. Fix it
-  def whiteCastle(implicit b:Board):Seq[Move]= {
-    val wkc = if (b.castlingRight('K') && freeAndClear(1,f1,g1)) Some(whiteKingsideCastle) else None
-    val wqc = if (b.castlingRight('Q') && freeAndClear(1,d1,c1) && b(b1)==empty ) Some(whiteQueensideCastle) else None
-    List(wkc,wqc).flatMap(f=>f)
+  def whiteCastle(implicit b: Board): Seq[Move] = {
+    val wkc = if (b.castlingRight('K') && freeAndClear(1, f1, g1)) Some(whiteKingsideCastle) else None
+    val wqc = if (b.castlingRight('Q') && freeAndClear(1, d1, c1) && b(b1) == empty) Some(whiteQueensideCastle) else None
+    List(wkc, wqc).flatMap(f => f)
   }
 
-  def blackCastle(implicit b:Board):Seq[Move]= {
-    val bkc = if (b.castlingRight('k') && freeAndClear(-1,f8,g8)) Some(blackKingsideCastle) else None
-    val bqc = if (b.castlingRight('q') && freeAndClear(-1,d8,c8) && b(b8)==empty ) Some(blackQueensideCastle) else None
-    List(bkc,bqc).flatMap(f=>f)
+  def blackCastle(implicit b: Board): Seq[Move] = {
+    val bkc = if (b.castlingRight('k') && freeAndClear(-1, f8, g8)) Some(blackKingsideCastle) else None
+    val bqc = if (b.castlingRight('q') && freeAndClear(-1, d8, c8) && b(b8) == empty) Some(blackQueensideCastle) else None
+    List(bkc, bqc).flatMap(f => f)
   }
 
   def kingMoveGen(b: Board, sq: Int, forSide: Int) = {
@@ -123,43 +115,52 @@ object Codpiece {
     else basicKingMoves
   }
 
-  def genSlideRay(source:C, delta:C) =
-    (1 to 8).map(source+delta*_).filter(_.is_valid).map(coordsToMove(source,_))
+  def genSlideRay(source: C, delta: C) =
+    (1 to 8).map(source + delta * _).filter(_.is_valid).map(coordsToMove(source, _))
 
-  def genSlideRays(source:C, deltas:Seq[C]) = deltas.map(genSlideRay(source,_))
+  def genSlideRays(source: C, deltas: Seq[C]) = deltas.map(genSlideRay(source, _))
 
-  val bishopDeltas = Array( C(-1,-1), C(-1,1), C(1,-1), C(1,1) )
-  val rookDeltas = Array( C(-1,0), C(1,0), C(0,-1), C(0,1) )
+  val bishopDeltas = Array(C(-1, -1), C(-1, 1), C(1, -1), C(1, 1))
+  val rookDeltas = Array(C(-1, 0), C(1, 0), C(0, -1), C(0, 1))
 
-  val bishopMoveLookup = coords.map( genSlideRays(_,bishopDeltas))
-  val rookMoveLookup = coords.map( genSlideRays(_,rookDeltas))
-  val queenMoveLookup = coords.map( genSlideRays(_,bishopDeltas++rookDeltas))
+  val bishopMoveLookup = coords.map(genSlideRays(_, bishopDeltas))
+  val rookMoveLookup = coords.map(genSlideRays(_, rookDeltas))
+  val queenMoveLookup = coords.map(genSlideRays(_, bishopDeltas ++ rookDeltas))
 
-  def generateSlidingRay( board:Board, ray:Seq[Move], forSide:Int):Seq[Move] = {
+  def generateSlidingRay(board: Board, ray: Seq[Move], forSide: Int): Seq[Move] = {
     val takeIndex = ray.indexWhere((m: Move) => board(m.to) != empty)
-    if ( takeIndex == -1 ) ray else {
+    if (takeIndex == -1) ray
+    else {
       val pa = board(ray(takeIndex).to)
-      val captureExtend: Int = if ( pa.side != forSide ) 1 else 0
+      val captureExtend: Int = if (pa.side != forSide) 1 else 0
       ray.slice(0, takeIndex + captureExtend)
     }
   }
 
-  class PawnEnPesant(from:C, to:C) extends Move(from.toSquare,to.toSquare) {
-    val lift = C(from.r,to.f).toSquare
-    override def play( b:Board ) = {
+  class PawnEnPesant(from: C, to: C) extends Move(from.toSquare, to.toSquare) {
+    val lift = C(from.r, to.f).toSquare
+
+    override def play(b: Board) = {
       super.play(b)
-      b(lift)=empty
+      b(lift) = empty
     }
-    override def toString() = { super.toString() + "ep"}
+
+    override def toString() = {
+      super.toString() + "ep"
+    }
   }
 
-  class PawnDoubleMove(from:Int,to:Int) extends Move(from,to) {
-    val enPesantTarget = (from+to)/2
-    override def play( b:Board ) = {
+  class PawnDoubleMove(from: Int, to: Int) extends Move(from, to) {
+    val enPesantTarget = (from + to) / 2
+
+    override def play(b: Board) = {
       super.play(b)
       b.ep_target = enPesantTarget
     }
-    override def toString() = { super.toString() + "dpm"}
+
+    override def toString() = {
+      super.toString() + "dpm"
+    }
   }
 
   class PromotionMove(from: Int, to: Int, promotesTo: Piece) extends Move(from, to) {
@@ -167,68 +168,69 @@ object Codpiece {
       super.play(board)
       board(to) = promotesTo
     }
-    override def toString() = { super.toString() + "=" + promotesTo.glyph }
+
+    override def toString() = {
+      super.toString() + "=" + promotesTo.glyph
+    }
   }
 
-  val whitePrmotePieces = List( wKnight, wBishop, wRook, wQueen )
-  val blackPrmotePieces = List( bKnight, bBishop, bRook, bQueen )
+  val whitePromotePieces = List(wKnight, wBishop, wRook, wQueen)
+  val blackPromotePieces = List(bKnight, bBishop, bRook, bQueen)
 
-  def pawnMoveToPromoters(m:Move):List[Move] = {
-    if (m.to < 8) whitePrmotePieces.map(new PromotionMove(m.from,m.to,_))
-    else if (m.to >= a1) blackPrmotePieces.map(new PromotionMove(m.from,m.to,_))
+  def pawnMoveToPromoters(m: Move): List[Move] = {
+    if (m.to < 8) whitePromotePieces.map(new PromotionMove(m.from, m.to, _))
+    else if (m.to >= a1) blackPromotePieces.map(new PromotionMove(m.from, m.to, _))
     else List(m)
   }
 
 
-  def pawnSingle(sq:Int, side:Int) = pawnMoveToPromoters(new Move(sq, sq-side*8))
+  def pawnSingle(sq: Int, side: Int) = pawnMoveToPromoters(new Move(sq, sq - side * 8))
 
-  def pawnDouble(sq:Int, side:Int):List[PawnDoubleMove] = {
-    if (getRank(sq)==1 && side == -1) List(new PawnDoubleMove(sq, sq+16))
-    else if ( getRank(sq)==6 && side == 1 ) List(new PawnDoubleMove(sq, sq-16))
+  def pawnDouble(sq: Int, side: Int): List[PawnDoubleMove] = {
+    if (getRank(sq) == 1 && side == -1) List(new PawnDoubleMove(sq, sq + 16))
+    else if (getRank(sq) == 6 && side == 1) List(new PawnDoubleMove(sq, sq - 16))
     else List()
   }
-  def pawnCapture(sq:Int, side:Int):List[Move] = {
-    val leftCapts = if (getFile(sq)!=0) pawnMoveToPromoters( new Move(sq,sq-1-side*8)) else List()
-    val rightCapts = if (getFile(sq)!=7) pawnMoveToPromoters( new Move(sq,sq+1-side*8)) else List()
+
+  def pawnCapture(sq: Int, side: Int): List[Move] = {
+    val leftCapts = if (getFile(sq) != 0) pawnMoveToPromoters(new Move(sq, sq - 1 - side * 8)) else List()
+    val rightCapts = if (getFile(sq) != 7) pawnMoveToPromoters(new Move(sq, sq + 1 - side * 8)) else List()
     leftCapts ++ rightCapts
   }
 
-  def pawnEnPesant(sq:Int,side:Int):List[PawnEnPesant] = {
-    if (side==1 && getRank(sq)!=3) return List()
-    if (side== -1 && getRank(sq)!=4) return List()
+  def pawnEnPesant(sq: Int, side: Int): List[PawnEnPesant] = {
+    if (side == 1 && getRank(sq) != 3) return List()
+    if (side == -1 && getRank(sq) != 4) return List()
     val c = C.fromSquare(sq)
-    val leftEP = if (getFile(sq)!=0) Some( new PawnEnPesant(c,c+C(-side,-1))) else None
-    val rightEP = if (getFile(sq)!=7) Some( new PawnEnPesant(c,c+C(-side,1))) else None
-    List(leftEP,rightEP).flatMap(f=>f)
+    val leftEP = if (getFile(sq) != 0) Some(new PawnEnPesant(c, c + C(-side, -1))) else None
+    val rightEP = if (getFile(sq) != 7) Some(new PawnEnPesant(c, c + C(-side, 1))) else None
+    List(leftEP, rightEP).flatMap(f => f)
   }
 
-  case class PawnPackage(singles:List[Move], doubles:List[PawnDoubleMove], captures:List[Move], epMoves:List[PawnEnPesant]) {
+  case class PawnPackage(singles: List[Move], doubles: List[PawnDoubleMove], captures: List[Move], epMoves: List[PawnEnPesant]) {
 
   }
 
-  def pawnMoves(side:Int)(sq:Int)=PawnPackage(pawnSingle(sq, side),pawnDouble(sq, side),pawnCapture(sq, side),pawnEnPesant(sq,side))
+  def pawnMoves(side: Int)(sq: Int) = PawnPackage(pawnSingle(sq, side), pawnDouble(sq, side), pawnCapture(sq, side), pawnEnPesant(sq, side))
 
-  def pawnTable(side:Int) = squares.map(pawnMoves(side) _)
+  def pawnTable(side: Int) = squares.map(pawnMoves(side) _)
 
   val whitePawnTable = pawnTable(1)
   val blackPawnTable = pawnTable(-1)
 
-  def pawnGen(table:IndexedSeq[PawnPackage])(b:Board, sq:Int, toMove:Int) = {
+  def pawnGen(table: IndexedSeq[PawnPackage])(b: Board, sq: Int, toMove: Int) = {
     val pp = table(sq)
-    pp.singles.filter(m=>b(m.to)==empty) ++
-    pp.doubles.filter(m=>b(m.enPesantTarget)==empty) ++
-    pp.captures.filter(m=>b(m.to).side == -toMove) ++
-    pp.epMoves.filter(m=>m.lift==b.ep_target)
+    pp.singles.filter(m => b(m.to) == empty) ++
+      pp.doubles.filter(m => b(m.enPesantTarget) == empty) ++
+      pp.captures.filter(m => b(m.to).side == -toMove) ++
+      pp.epMoves.filter(m => m.lift == b.ep_target)
   }
 
   val whitePawnGen = pawnGen(whitePawnTable) _
   val blackPawnGen = pawnGen(blackPawnTable) _
 
 
-
-
-
-  def sliderMoveGen(lookup:IndexedSeq[Seq[IndexedSeq[Move]]])( board:Board, square:Int , forSide:Int) =
+  def sliderMoveGen(lookup: IndexedSeq[Seq[IndexedSeq[Move]]])(board: Board, square: Int, forSide: Int) =
     lookup(square).flatMap(generateSlidingRay(board, _, forSide))
 
   val bishopMoveGen = sliderMoveGen(bishopMoveLookup) _
@@ -236,8 +238,8 @@ object Codpiece {
   val queenMoveGen = sliderMoveGen(queenMoveLookup) _
 
   //basic piece definitions
-  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board,Int,Int) => Seq[Move] )  {
-    val hashes = squares.map( x => r.nextLong() )
+  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move]) {
+    val hashes = squares.map(x => r.nextLong())
   }
 
   val empty = Piece(" ", 0, 0, knightMoveGen)
@@ -261,8 +263,8 @@ object Codpiece {
     wPawn, wKnight, wBishop, wRook, wQueen, wKing,
     bPawn, bKnight, bBishop, bRook, bQueen, bKing)
 
-  def moveGen(b:Board) = {
-    squares.flatMap(sq=>if (b(sq).side==b.toMove) b(sq).movegen(b,sq,b.toMove) else List() )
+  def moveGen(b: Board) = {
+    squares.flatMap(sq => if (b(sq).side == b.toMove) b(sq).movegen(b, sq, b.toMove) else List())
   }
 
   def charToPiece(pStr: String): Option[Piece] = pieces.find(p => p.glyph == pStr)
@@ -272,37 +274,38 @@ object Codpiece {
                    toMove: Int,
                    var castlingRight: Set[Char],
                    var ep_target: Int,
-                   var material: Int, var whiteMaterial:Int, var blackMaterial:Int,
-                   var hash: Long, var pawnHash:Long ,
-                   var whiteKingAt:Int, var blackKingAt:Int ) {
+                   var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
+                   var hash: Long, var pawnHash: Long,
+                   var whiteKingAt: Int, var blackKingAt: Int) {
     def sq(rank: Int = 0, file: Int = 0) = squares(rank * 8 + file)
 
-    def apply(square:Int):Piece = squares(square)
+    def apply(square: Int): Piece = squares(square)
 
-    def update(square:Int,p:Piece) = {
+    def update(square: Int, p: Piece) = {
 
       val removing = squares(square)
-      if (removing!=empty) { //removing piece
-        if (removing.value<0) blackMaterial += removing.value
-        if (removing.value>0) whiteMaterial -= removing.value
+      if (removing != empty) {
+        //removing piece
+        if (removing.value < 0) blackMaterial += removing.value
+        if (removing.value > 0) whiteMaterial -= removing.value
         material -= removing.value
         hash ^= removing.hashes(square)
-        if (removing.value==100) pawnHash ^= removing.hashes(square)
+        if (removing.value == 100) pawnHash ^= removing.hashes(square)
       }
-      squares(square)=p
+      squares(square) = p
       if (p.value < 0) blackMaterial -= p.value
       if (p.value > 0) whiteMaterial += p.value
       if (p.value == 10000) whiteKingAt = square
       if (p.value == -10000) blackKingAt = square
       material += p.value
       hash ^= p.hashes(square)
-      if (p.value==100) pawnHash ^= p.hashes(square)
-      if (square==e1) castlingRight = castlingRight - 'K' - 'Q'
-      if (square==e8) castlingRight = castlingRight - 'k' - 'q'
-      if (square==h1) castlingRight = castlingRight - 'K'
-      if (square==a1) castlingRight = castlingRight - 'Q'
-      if (square==h8) castlingRight = castlingRight - 'k'
-      if (square==a8) castlingRight = castlingRight - 'q'
+      if (p.value == 100) pawnHash ^= p.hashes(square)
+      if (square == e1) castlingRight = castlingRight - 'K' - 'Q'
+      if (square == e8) castlingRight = castlingRight - 'k' - 'q'
+      if (square == h1) castlingRight = castlingRight - 'K'
+      if (square == a1) castlingRight = castlingRight - 'Q'
+      if (square == h8) castlingRight = castlingRight - 'k'
+      if (square == a8) castlingRight = castlingRight - 'q'
     }
 
     override def toString(): String = {
@@ -320,7 +323,7 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone,-toMove,castlingRight,0,material,whiteMaterial,blackMaterial,hash,pawnHash,whiteKingAt,blackKingAt)
+      Board(squares.clone, -toMove, castlingRight, 0, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt)
     }
   }
 
@@ -345,9 +348,9 @@ object Codpiece {
       case "w" => 1
       case "b" => -1
     }
-    val ep_square:Int = Try(ep_square_str.toInt) getOrElse -1
-    val board = Board(pieceSquares.map(_=>empty).toArray, toMove, Set(), ep_square,0,0,0,0,0,-1,-1)
-    pieceSquares.zipWithIndex.map({case(p,sq)=>if (p!=empty) board(sq)=p})
+    val ep_square: Int = Try(ep_square_str.toInt) getOrElse -1
+    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1)
+    pieceSquares.zipWithIndex.map({ case (p, sq) => if (p != empty) board(sq) = p })
     board.castlingRight = castlingRights.toSet
     board
   }
@@ -359,13 +362,6 @@ object Codpiece {
     move.play(newBoard)
     newBoard
   }
-
-
-
-
-
-
-
 
 
 }

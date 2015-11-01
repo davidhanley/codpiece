@@ -13,27 +13,21 @@ class UserActionTest extends FlatSpec with Matchers {
   }
 
   "basic coordinate tests" should "pass" in {
-    val c = Codpiece.C(1,1)
-    c + c shouldBe Codpiece.C(2,2)
-    c * 3 shouldBe Codpiece.C(3,3)
+    val c = Codpiece.C(1, 1)
+    c + c shouldBe Codpiece.C(2, 2)
+    c * 3 shouldBe Codpiece.C(3, 3)
 
-    Codpiece.C(4,4).toSquare shouldBe Codpiece.e4
+    Codpiece.C(4, 4).toSquare shouldBe Codpiece.e4
   }
 
 
   "mucking with the board" should "create correct material values" in {
     val b = Codpiece.startBoard.makeChild()
-
     b.material shouldBe 0
-
     b(Codpiece.a8) = Codpiece.empty
-
     b.material shouldBe Codpiece.wRook.value
-
     b.blackMaterial shouldBe b.whiteMaterial - Codpiece.wRook.value
-
     b(Codpiece.a8) = Codpiece.bRook
-
     b.material shouldBe 0
     b.blackMaterial shouldBe b.whiteMaterial
 
@@ -44,11 +38,11 @@ class UserActionTest extends FlatSpec with Matchers {
     b.whiteKingAt shouldBe Codpiece.e1
     b.blackKingAt shouldBe Codpiece.e8
 
-    val m1 = new Codpiece.Move(Codpiece.e1,Codpiece.e2)
+    val m1 = new Codpiece.Move(Codpiece.e1, Codpiece.e2)
     val b1 = Codpiece.play(b, m1)
     b1.whiteKingAt shouldBe Codpiece.e2
 
-    val m2 = new Codpiece.Move(Codpiece.e8,Codpiece.e4)
+    val m2 = new Codpiece.Move(Codpiece.e8, Codpiece.e4)
     val b2 = Codpiece.play(b, m2)
     b2.blackKingAt shouldBe Codpiece.e4
   }
@@ -91,11 +85,11 @@ class UserActionTest extends FlatSpec with Matchers {
     e7bp.singles.length shouldBe 1
   }
 
-  "pawnMoves" should "work" in {
-    val pdm = new Codpiece.PawnDoubleMove( Codpiece.e2, Codpiece.e4)
+  "special pawn Moves" should "work" in {
+    val pdm = new Codpiece.PawnDoubleMove(Codpiece.e2, Codpiece.e4)
     pdm.enPesantTarget shouldBe Codpiece.e3
 
-    val pep = new Codpiece.PawnEnPesant(Codpiece.C.fromSquare(Codpiece.e5),Codpiece.C.fromSquare(Codpiece.f6))
+    val pep = new Codpiece.PawnEnPesant(Codpiece.C.fromSquare(Codpiece.e5), Codpiece.C.fromSquare(Codpiece.f6))
     pep.lift shouldBe Codpiece.f5
   }
 
@@ -124,16 +118,16 @@ class UserActionTest extends FlatSpec with Matchers {
     val b2 = b.makeChild()
     b2(Codpiece.e2) = Codpiece.empty
     b2(Codpiece.g1) = Codpiece.empty
-    Codpiece.freeAndClear(1,Codpiece.g1)(b2) shouldBe true
-    Codpiece.freeAndClear(1,Codpiece.f1)(b2) shouldBe false
-    Codpiece.freeAndClear(1,Codpiece.f1,Codpiece.g1)(b2) shouldBe false
+    Codpiece.freeAndClear(1, Codpiece.g1)(b2) shouldBe true
+    Codpiece.freeAndClear(1, Codpiece.f1)(b2) shouldBe false
+    Codpiece.freeAndClear(1, Codpiece.f1, Codpiece.g1)(b2) shouldBe false
     val castleMoves = Codpiece.whiteCastle(b2)
     castleMoves.length shouldBe 0
 
     b2(Codpiece.f1) = Codpiece.empty
-    Codpiece.freeAndClear(1,Codpiece.g1)(b2) shouldBe true
-    Codpiece.freeAndClear(1,Codpiece.f1)(b2) shouldBe true
-    Codpiece.freeAndClear(1,Codpiece.f1,Codpiece.g1)(b2) shouldBe true
+    Codpiece.freeAndClear(1, Codpiece.g1)(b2) shouldBe true
+    Codpiece.freeAndClear(1, Codpiece.f1)(b2) shouldBe true
+    Codpiece.freeAndClear(1, Codpiece.f1, Codpiece.g1)(b2) shouldBe true
     val castle2Moves = Codpiece.whiteCastle(b2)
     castle2Moves.length shouldBe 1
 
@@ -152,58 +146,56 @@ class UserActionTest extends FlatSpec with Matchers {
     val kingMovesFrome1CastlingWrecked = Codpiece.kingMoveGen(b2, Codpiece.e1, 1)
     kingMovesFrome1CastlingWrecked.length shouldBe 2
 
-    val wpme2 = Codpiece.whitePawnGen(b,Codpiece.e2,1)
+    val wpme2 = Codpiece.whitePawnGen(b, Codpiece.e2, 1)
     wpme2.length shouldBe 2
 
-    val wpme6 = Codpiece.whitePawnGen(b,Codpiece.e6,1)
+    val wpme6 = Codpiece.whitePawnGen(b, Codpiece.e6, 1)
     wpme2.length shouldBe 2
 
-    val wpme7 = Codpiece.whitePawnGen(b,Codpiece.e7,1)
+    val wpme7 = Codpiece.whitePawnGen(b, Codpiece.e7, 1)
     wpme7.length shouldBe 8
 
-    val wpmh7 = Codpiece.whitePawnGen(b,Codpiece.h7,1)
+    val wpmh7 = Codpiece.whitePawnGen(b, Codpiece.h7, 1)
     wpmh7.length shouldBe 4
   }
 
   "movegen" should "accurately generate moves" in {
     val b = Codpiece.startBoard
-
     val moves = Codpiece.moveGen(b)
-
     moves.length shouldBe 20
   }
 
   def bench() = {
     val b = Codpiece.startBoard
     val st = System.currentTimeMillis()
-    val m = new Codpiece.Move(48,48-16)
+    val m = new Codpiece.Move(Codpiece.e2, Codpiece.e4)
     var x = 0
-    for( a <- 1 to 1000000) {
+    for (a <- 1 to 1000000) {
       val b2 = Codpiece.play(b, m)
       x = x + b2.toMove
     }
     val et = System.currentTimeMillis()
 
     println(x)
-    println("Time Taken:" + ( et-st) )
+    println("Time Taken:" + (et - st))
   }
 
-  def perft( b:Codpiece.Board, depth:Int ):Int = {
-    if (depth==0) 1 else
-    {
+  def perft(b: Codpiece.Board, depth: Int): Int = {
+    if (depth == 0) 1
+    else {
       //println(b)
-       val moves = Codpiece.moveGen(b)
+      val moves = Codpiece.moveGen(b)
       //println(moves)
-       moves.map(m=>perft(Codpiece.play(b,m),depth-1) ).reduce( _ + _ )
+      moves.map(m => perft(Codpiece.play(b, m), depth - 1)).reduce(_ + _)
     }
   }
 
   "perfttests" should "be accurate" in {
     val b = Codpiece.startBoard
 
-    perft(b,1) shouldBe 20
-    perft(b,2) shouldBe 400
-    perft(b,3) shouldBe 8902
+    perft(b, 1) shouldBe 20
+    perft(b, 2) shouldBe 400
+    perft(b, 3) shouldBe 8902
     //perft(b,4) shouldBe 197281 //shows king evading capture
     //perft(b,5) shouldBe 4865609
     //perft(b,6) shouldBe 119060324
