@@ -342,15 +342,10 @@ object Codpiece {
       case "w" => 1
       case "b" => -1
     }
-
     val ep_square:Int = Try(ep_square_str.toInt) getOrElse -1
-
     val board = Board(pieceSquares.map(_=>empty).toArray, toMove, Set(), ep_square,0,0,0,0,0)
-
     pieceSquares.zipWithIndex.map({case(p,sq)=>if (p!=empty) board(sq)=p})
-
     board.castlingRight = castlingRights.toSet
-
     board
   }
 

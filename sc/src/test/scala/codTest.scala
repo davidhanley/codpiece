@@ -69,6 +69,7 @@ class UserActionTest extends FlatSpec with Matchers {
     h2bp.captures.length shouldBe 4
     h2bp.doubles.length shouldBe 0
     h2bp.singles.length shouldBe 4
+    h2bp.epMoves.length shouldBe 4
 
     val e7bp = Codpiece.blackPawnTable(Codpiece.e7)
     e7bp.captures.length shouldBe 2
@@ -112,9 +113,7 @@ class UserActionTest extends FlatSpec with Matchers {
     Codpiece.freeAndClear(1,Codpiece.g1)(b2) shouldBe true
     Codpiece.freeAndClear(1,Codpiece.f1)(b2) shouldBe false
     Codpiece.freeAndClear(1,Codpiece.f1,Codpiece.g1)(b2) shouldBe false
-    println(b2)
     val castleMoves = Codpiece.whiteCastle(b2)
-    println( castleMoves )
     castleMoves.length shouldBe 0
 
     b2(Codpiece.f1) = Codpiece.empty
@@ -166,7 +165,6 @@ class UserActionTest extends FlatSpec with Matchers {
     val m = new Codpiece.Move(48,48-16)
     var x = 0
     for( a <- 1 to 1000000) {
-      //print(".")
       val b2 = Codpiece.play(b, m)
       x = x + b2.toMove
     }
@@ -180,7 +178,6 @@ class UserActionTest extends FlatSpec with Matchers {
     if (depth==0) 1 else
     {
       //println(b)
-
        val moves = Codpiece.moveGen(b)
       //println(moves)
        moves.map(m=>perft(Codpiece.play(b,m),depth-1) ).reduce( _ + _ )
@@ -193,7 +190,7 @@ class UserActionTest extends FlatSpec with Matchers {
     perft(b,1) shouldBe 20
     perft(b,2) shouldBe 400
     perft(b,3) shouldBe 8902
-    //perft(b,4) shouldBe 197281
+    //perft(b,4) shouldBe 197281 //shows king evading capture 
     //perft(b,5) shouldBe 4865609
     //perft(b,6) shouldBe 119060324
 
