@@ -39,6 +39,20 @@ class UserActionTest extends FlatSpec with Matchers {
 
   }
 
+  "king location" should "be tracked" in {
+    val b = Codpiece.startBoard.makeChild()
+    b.whiteKingAt shouldBe Codpiece.e1
+    b.blackKingAt shouldBe Codpiece.e8
+
+    val m1 = new Codpiece.Move(Codpiece.e1,Codpiece.e2)
+    val b1 = Codpiece.play(b, m1)
+    b1.whiteKingAt shouldBe Codpiece.e2
+
+    val m2 = new Codpiece.Move(Codpiece.e8,Codpiece.e4)
+    val b2 = Codpiece.play(b, m2)
+    b2.blackKingAt shouldBe Codpiece.e4
+  }
+
   "move tables" should "be correct" in {
     val h2wp = Codpiece.whitePawnTable(Codpiece.h2)
     h2wp.captures.length shouldBe 1
@@ -69,7 +83,7 @@ class UserActionTest extends FlatSpec with Matchers {
     h2bp.captures.length shouldBe 4
     h2bp.doubles.length shouldBe 0
     h2bp.singles.length shouldBe 4
-    h2bp.epMoves.length shouldBe 4
+    h2bp.epMoves.length shouldBe 0
 
     val e7bp = Codpiece.blackPawnTable(Codpiece.e7)
     e7bp.captures.length shouldBe 2
@@ -190,7 +204,7 @@ class UserActionTest extends FlatSpec with Matchers {
     perft(b,1) shouldBe 20
     perft(b,2) shouldBe 400
     perft(b,3) shouldBe 8902
-    //perft(b,4) shouldBe 197281 //shows king evading capture 
+    //perft(b,4) shouldBe 197281 //shows king evading capture
     //perft(b,5) shouldBe 4865609
     //perft(b,6) shouldBe 119060324
 

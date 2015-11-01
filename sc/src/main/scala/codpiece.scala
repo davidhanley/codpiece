@@ -273,7 +273,8 @@ object Codpiece {
                    var castlingRight: Set[Char],
                    var ep_target: Int,
                    var material: Int, var whiteMaterial:Int, var blackMaterial:Int,
-                   var hash: Long, var pawnHash:Long ) {
+                   var hash: Long, var pawnHash:Long ,
+                   var whiteKingAt:Int, var blackKingAt:Int ) {
     def sq(rank: Int = 0, file: Int = 0) = squares(rank * 8 + file)
 
     def apply(square:Int):Piece = squares(square)
@@ -289,8 +290,10 @@ object Codpiece {
         if (removing.value==100) pawnHash ^= removing.hashes(square)
       }
       squares(square)=p
-      if (p.value<0) blackMaterial -= p.value
-      if (p.value>0) whiteMaterial += p.value
+      if (p.value < 0) blackMaterial -= p.value
+      if (p.value > 0) whiteMaterial += p.value
+      if (p.value == 10000) whiteKingAt = square
+      if (p.value == -10000) blackKingAt = square
       material += p.value
       hash ^= p.hashes(square)
       if (p.value==100) pawnHash ^= p.hashes(square)
@@ -317,7 +320,7 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone,-toMove,castlingRight,0,material,whiteMaterial,blackMaterial,hash,pawnHash)
+      Board(squares.clone,-toMove,castlingRight,0,material,whiteMaterial,blackMaterial,hash,pawnHash,whiteKingAt,blackKingAt)
     }
   }
 
@@ -343,7 +346,7 @@ object Codpiece {
       case "b" => -1
     }
     val ep_square:Int = Try(ep_square_str.toInt) getOrElse -1
-    val board = Board(pieceSquares.map(_=>empty).toArray, toMove, Set(), ep_square,0,0,0,0,0)
+    val board = Board(pieceSquares.map(_=>empty).toArray, toMove, Set(), ep_square,0,0,0,0,0,-1,-1)
     pieceSquares.zipWithIndex.map({case(p,sq)=>if (p!=empty) board(sq)=p})
     board.castlingRight = castlingRights.toSet
     board
