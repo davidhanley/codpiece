@@ -1,5 +1,6 @@
 
 
+import scala.collection.immutable
 import scala.util._
 
 object Codpiece {
@@ -87,9 +88,59 @@ object Codpiece {
   val blackKingsideCastle = new CastlingMove(e8, g8, h8, f8)
   val blackQueensideCastle = new CastlingMove(e8, c8, a8, d8)
 
-  //TODO:fill this in
+  def kingAttacks(sq: Int, king: Piece)(implicit b: Board) = kingMoveLookup(sq).exists(m => b(m.to) == king)
+
+  def knightAttacks(sq: Int, knight: Piece)(implicit b: Board) = knightMoveLookup(sq).exists(m => b(m.to) == knight)
+
+  def pawnAttacks(sq: Int, pawn: Piece)(implicit b: Board) = {
+    val table = if (pawn == bPawn) whitePawnTable else blackPawnTable
+    val capts = table(sq).captures
+    //print(sq)
+    //print(capts)
+    capts.exists(m => b(m.to) == pawn)
+  }
+
+  def scanRay(mr: Seq[Move], pcs: List[Piece])(implicit b: Board): Boolean = {
+    mr.foreach(mv => {
+      val p = b(mv.to);
+      if (p != empty) return (pcs.contains(p))
+    })
+    return false
+  }
+
+  def scanRays(sq: Int, mt: IndexedSeq[Seq[immutable.IndexedSeq[Move]]], pcs: List[Piece])(implicit b: Board) = {
+    mt(sq).exists(ray => scanRay(ray, pcs))
+  }
+
   def sideAttacks(sq: Int, side: Int)(implicit board: Board) = {
-    false
+    val (king, knight, pawn, hsliders, vsliders) =
+      if (side == -1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen)) else (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
+    /* println(board)
+    println(side)
+    println(squareToString(sq))
+    val ka = kingAttacks(sq, king)
+    val na = knightAttacks(sq, knight)
+    val pa = pawnAttacks(sq, pawn)
+    val hv = scanRays(sq, rookMoveLookup, hsliders)
+    val di = scanRays(sq, bishopMoveLookup, vsliders)
+    println(ka)
+    println(na)
+    println(pa)
+    println(hv)
+    print(hsliders)
+    println(di) */
+    kingAttacks(sq, king) || knightAttacks(sq, knight) || pawnAttacks(sq, pawn) ||
+      scanRays(sq, rookMoveLookup, hsliders) || scanRays(sq, bishopMoveLookup, vsliders)
+  }
+
+  def kingIsInDanger(side: Int)(implicit b: Board):Boolean = {
+    if (side == -1 && Codpiece.sideAttacks(b.blackKingAt, -1)) return true
+    return Codpiece.sideAttacks(b.whiteKingAt, 1)
+
+  }
+
+  def canCaptureKing(implicit b:Board) = {
+    kingIsInDanger(-(b.toMove))
   }
 
   def freeAndClear(side: Int, squares: Int*)(implicit board: Board): Boolean =
@@ -137,8 +188,8 @@ object Codpiece {
     }
   }
 
-  class PawnEnPesant(from: C, to: C) extends Move(from.toSquare, to.toSquare) {
-    val lift = C(from.r, to.f).toSquare
+  class PawnEnPesant(from: Int, to: Int) extends Move(from, to) {
+    val lift = to + (if (from<to) -8 else 8)
 
     override def play(b: Board) = {
       super.play(b)
@@ -146,7 +197,7 @@ object Codpiece {
     }
 
     override def toString() = {
-      super.toString() + "ep"
+      super.toString() + "ep="+squareToString(lift)
     }
   }
 
@@ -201,9 +252,9 @@ object Codpiece {
   def pawnEnPesant(sq: Int, side: Int): List[PawnEnPesant] = {
     if (side == 1 && getRank(sq) != 3) return List()
     if (side == -1 && getRank(sq) != 4) return List()
-    val c = C.fromSquare(sq)
-    val leftEP = if (getFile(sq) != 0) Some(new PawnEnPesant(c, c + C(-side, -1))) else None
-    val rightEP = if (getFile(sq) != 7) Some(new PawnEnPesant(c, c + C(-side, 1))) else None
+    //val c = C.fromSquare(sq)
+    val leftEP = if (getFile(sq) != 0) Some(new PawnEnPesant(sq, sq-side*8-1)) else None
+    val rightEP = if (getFile(sq) != 7) Some(new PawnEnPesant(sq, sq-side*8+1)) else None
     List(leftEP, rightEP).flatMap(f => f)
   }
 
@@ -211,7 +262,9 @@ object Codpiece {
 
   }
 
-  def pawnMoves(side: Int)(sq: Int) = PawnPackage(pawnSingle(sq, side), pawnDouble(sq, side), pawnCapture(sq, side), pawnEnPesant(sq, side))
+  val emptyPawnPackage = PawnPackage(List(), List(), List(), List())
+
+  def pawnMoves(side: Int)(sq: Int) = if ((sq <= h8) || (sq >= a1)) emptyPawnPackage else PawnPackage(pawnSingle(sq, side), pawnDouble(sq, side), pawnCapture(sq, side), pawnEnPesant(sq, side))
 
   def pawnTable(side: Int) = squares.map(pawnMoves(side) _)
 
@@ -223,7 +276,7 @@ object Codpiece {
     pp.singles.filter(m => b(m.to) == empty) ++
       pp.doubles.filter(m => b(m.enPesantTarget) == empty) ++
       pp.captures.filter(m => b(m.to).side == -toMove) ++
-      pp.epMoves.filter(m => m.lift == b.ep_target)
+      pp.epMoves.filter(m => m.to == b.ep_target)
   }
 
   val whitePawnGen = pawnGen(whitePawnTable) _
