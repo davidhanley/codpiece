@@ -133,13 +133,13 @@ object Codpiece {
       scanRays(sq, rookMoveLookup, hsliders) || scanRays(sq, bishopMoveLookup, vsliders)
   }
 
-  def kingIsInDanger(side: Int)(implicit b: Board):Boolean = {
+  def kingIsInDanger(side: Int)(implicit b: Board): Boolean = {
     if (side == -1 && Codpiece.sideAttacks(b.blackKingAt, -1)) return true
     return Codpiece.sideAttacks(b.whiteKingAt, 1)
 
   }
 
-  def canCaptureKing(implicit b:Board) = {
+  def canCaptureKing(implicit b: Board) = {
     kingIsInDanger(-(b.toMove))
   }
 
@@ -189,7 +189,7 @@ object Codpiece {
   }
 
   class PawnEnPesant(from: Int, to: Int) extends Move(from, to) {
-    val lift = to + (if (from<to) -8 else 8)
+    val lift = to + (if (from < to) -8 else 8)
 
     override def play(b: Board) = {
       super.play(b)
@@ -197,7 +197,7 @@ object Codpiece {
     }
 
     override def toString() = {
-      super.toString() + "ep="+squareToString(lift)
+      super.toString() + "ep=" + squareToString(lift)
     }
   }
 
@@ -209,9 +209,9 @@ object Codpiece {
       b.ep_target = enPesantTarget
     }
 
-    override def toString() = {
+    /*override def toString() = {
       super.toString() + "dpm"
-    }
+    }*/
   }
 
   class PromotionMove(from: Int, to: Int, promotesTo: Piece) extends Move(from, to) {
@@ -253,8 +253,8 @@ object Codpiece {
     if (side == 1 && getRank(sq) != 3) return List()
     if (side == -1 && getRank(sq) != 4) return List()
     //val c = C.fromSquare(sq)
-    val leftEP = if (getFile(sq) != 0) Some(new PawnEnPesant(sq, sq-side*8-1)) else None
-    val rightEP = if (getFile(sq) != 7) Some(new PawnEnPesant(sq, sq-side*8+1)) else None
+    val leftEP = if (getFile(sq) != 0) Some(new PawnEnPesant(sq, sq - side * 8 - 1)) else None
+    val rightEP = if (getFile(sq) != 7) Some(new PawnEnPesant(sq, sq - side * 8 + 1)) else None
     List(leftEP, rightEP).flatMap(f => f)
   }
 
@@ -416,5 +416,34 @@ object Codpiece {
     newBoard
   }
 
+  def getEnteredMove(board: Board) = {
+    val moves = moveGen(board)
+    val line = readLine()
+    val m = moves.filter(_.toString() == line)
+    if (m.length == 0) {
+      println("No matching move")
+      None
+    }
+    else if (m.length > 1) {
+      printf("Move is ambiguous")
+      None
+    }
+    else {
+      Some(m(0))
+    }
+  }
+
+  def main() = {
+    var curr = startBoard
+    while(true) {
+      println(curr)
+      println(moveGen(curr))
+      val mv = getEnteredMove(curr)
+      mv match {
+        case Some(m) => curr = play(curr,m)
+      }
+
+    }
+  }
 
 }
