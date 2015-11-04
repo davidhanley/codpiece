@@ -208,10 +208,6 @@ object Codpiece {
       super.play(b)
       b.ep_target = enPesantTarget
     }
-
-    /*override def toString() = {
-      super.toString() + "dpm"
-    }*/
   }
 
   class PromotionMove(from: Int, to: Int, promotesTo: Piece) extends Move(from, to) {
@@ -290,26 +286,38 @@ object Codpiece {
   val rookMoveGen = sliderMoveGen(rookMoveLookup) _
   val queenMoveGen = sliderMoveGen(queenMoveLookup) _
 
+  val centralize = Array(0, 3, 5, 10, 10, 5, 3, 0,
+    3, 5, 10, 15, 15, 10, 5, 3,
+    10, 15, 25, 25, 25, 25, 15, 10,
+    10, 20, 35, 45, 45, 35, 20, 10,
+    10, 20, 35, 45, 45, 35, 20, 10,
+    10, 15, 25, 25, 25, 25, 15, 10,
+    3, 5, 10, 15, 15, 10, 5, 3,
+    0, 3, 5, 10, 10, 5, 3, 0)
+
+  def simpleEval( b:Board, sq:Int):Int = centralize(sq)
+
+
   //basic piece definitions
-  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move]) {
+  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move],eval:(Board,Int)=>Int) {
     val hashes = squares.map(x => r.nextLong())
   }
 
-  val empty = Piece(" ", 0, 0, knightMoveGen)
+  val empty = Piece(" ", 0, 0, knightMoveGen, simpleEval)
 
-  val wPawn = Piece("P", 1, 100, whitePawnGen)
-  val wKnight = Piece("N", 1, 325, knightMoveGen)
-  val wBishop = Piece("B", 1, 350, bishopMoveGen)
-  val wRook = Piece("R", 1, 500, rookMoveGen)
-  val wQueen = Piece("Q", 1, 900, queenMoveGen)
-  val wKing = Piece("K", 1, 10000, kingMoveGen)
+  val wPawn = Piece("P", 1, 100, whitePawnGen, simpleEval)
+  val wKnight = Piece("N", 1, 325, knightMoveGen, simpleEval)
+  val wBishop = Piece("B", 1, 350, bishopMoveGen, simpleEval)
+  val wRook = Piece("R", 1, 500, rookMoveGen, simpleEval)
+  val wQueen = Piece("Q", 1, 900, queenMoveGen, simpleEval)
+  val wKing = Piece("K", 1, 10000, kingMoveGen, (b,sq)=> -simpleEval(b,sq))
 
-  val bPawn = Piece("p", -1, -100, blackPawnGen)
-  val bKnight = Piece("n", -1, -325, knightMoveGen)
-  val bBishop = Piece("b", -1, -350, bishopMoveGen)
-  val bRook = Piece("r", -1, -500, rookMoveGen)
-  val bQueen = Piece("q", -1, -900, queenMoveGen)
-  val bKing = Piece("k", -1, -10000, kingMoveGen)
+  val bPawn = Piece("p", -1, -100, blackPawnGen, simpleEval)
+  val bKnight = Piece("n", -1, -325, knightMoveGen, simpleEval)
+  val bBishop = Piece("b", -1, -350, bishopMoveGen, simpleEval)
+  val bRook = Piece("r", -1, -500, rookMoveGen, simpleEval)
+  val bQueen = Piece("q", -1, -900, queenMoveGen, simpleEval)
+  val bKing = Piece("k", -1, -10000, kingMoveGen, (b,sq)=> -simpleEval(b,sq))
 
   val pieces = List(
     empty,
@@ -438,12 +446,12 @@ object Codpiece {
 
   def main() = {
     var curr = startBoard
-    while(true) {
+    while (true) {
       println(curr)
       println(moveGen(curr))
       val mv = getEnteredMove(curr)
       mv match {
-        case Some(m) => curr = play(curr,m)
+        case Some(m) => curr = play(curr, m)
       }
 
     }
