@@ -322,6 +322,20 @@ object Codpiece {
 
   def charToPiece(pStr: String): Option[Piece] = pieces.find(p => p.glyph == pStr)
 
+  def boardToString(squares: Array[String]) = {
+    def sq(rank: Int = 0, file: Int = 0) = squares(rank * 8 + file)
+    val sb = new StringBuilder()
+    val part = "+---" * 8 + "+\n"
+    for (rank <- 0 to 7) {
+      sb.append(part)
+      for (file <- 0 to 7) {
+        sb.append("| " + sq(rank = rank, file = file) + " ")
+      }
+      sb.append("|\n")
+    }
+    sb.append(part)
+    sb.toString
+  }
 
   case class Board(squares: Array[Piece],
                    toMove: Int,
@@ -330,7 +344,6 @@ object Codpiece {
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
                    var whiteKingAt: Int, var blackKingAt: Int) {
-    def sq(rank: Int = 0, file: Int = 0) = squares(rank * 8 + file)
 
     def apply(square: Int): Piece = squares(square)
 
@@ -362,17 +375,7 @@ object Codpiece {
     }
 
     override def toString(): String = {
-      val sb = new StringBuilder()
-      val part = "+---" * 8 + "+\n"
-      for (rank <- 0 to 7) {
-        sb.append(part)
-        for (file <- 0 to 7) {
-          sb.append("| " + sq(rank = rank, file = file).glyph + " ")
-        }
-        sb.append("|\n")
-      }
-      sb.append(part)
-      sb.toString
+      boardToString(squares.map(_.glyph))
     }
 
     def makeChild() = {
