@@ -295,11 +295,11 @@ object Codpiece {
     3, 5, 10, 15, 15, 10, 5, 3,
     0, 3, 5, 10, 10, 5, 3, 0)
 
-  def simpleEval( b:Board, sq:Int):Int = centralize(sq)
+  def simpleEval(b: Board, sq: Int): Int = centralize(sq)
 
 
   //basic piece definitions
-  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move],eval:(Board,Int)=>Int) {
+  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], eval: (Board, Int) => Int) {
     val hashes = squares.map(x => r.nextLong())
   }
 
@@ -310,14 +310,14 @@ object Codpiece {
   val wBishop = Piece("B", 1, 350, bishopMoveGen, simpleEval)
   val wRook = Piece("R", 1, 500, rookMoveGen, simpleEval)
   val wQueen = Piece("Q", 1, 900, queenMoveGen, simpleEval)
-  val wKing = Piece("K", 1, 10000, kingMoveGen, (b,sq)=> -simpleEval(b,sq))
+  val wKing = Piece("K", 1, 10000, kingMoveGen, (b, sq) => -simpleEval(b, sq))
 
   val bPawn = Piece("p", -1, -100, blackPawnGen, simpleEval)
   val bKnight = Piece("n", -1, -325, knightMoveGen, simpleEval)
   val bBishop = Piece("b", -1, -350, bishopMoveGen, simpleEval)
   val bRook = Piece("r", -1, -500, rookMoveGen, simpleEval)
   val bQueen = Piece("q", -1, -900, queenMoveGen, simpleEval)
-  val bKing = Piece("k", -1, -10000, kingMoveGen, (b,sq)=> -simpleEval(b,sq))
+  val bKing = Piece("k", -1, -10000, kingMoveGen, (b, sq) => -simpleEval(b, sq))
 
   val pieces = List(
     empty,
@@ -444,6 +444,60 @@ object Codpiece {
     }
   }
 
+  def eval(b: Board) = {
+    var e:Int = b.material
+    for( sq <- squares ) {
+      val p = b(sq)
+      e += p.eval(b,sq)*p.side
+    }
+    e
+  }
+
+  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int, lastCapture:Boolean): (Int,Move) = {
+    var alpha = _alpha
+    if (depth <= 0 )
+      return (eval(board) * board.toMove,null)
+    if (depth <= 0)
+      alpha = Math.max(alpha,eval(board) * board.toMove)
+    var bestValue = Int.MinValue
+    var bestMove:Move = null
+    val moves = moveGen(board)
+    for (move <- moves) {
+      val is_capt = board(move.to)!=empty
+      if (depth > 0 || is_capt == true ) {
+        val child = play(board, move)
+        val (childVal, childMove) = negamax(child, depth - 1, -beta, -alpha, is_capt)
+        val nodeScore = -childVal
+        if (nodeScore > bestValue) {
+          bestValue = nodeScore
+          bestMove = move
+        }
+        alpha = Math.max(alpha, nodeScore)
+        if (alpha >= beta)
+          return (bestValue, bestMove) // or break
+      }
+    }
+    return (bestValue,bestMove)
+  }
+
+  /*function negamax(node, depth, α, β, color)
+  if depth = 0 or node is a terminal node
+  return color * the heuristic value of node
+  bestValue := -∞
+  childNodes := GenerateMoves(node)
+  childNodes := OrderMoves(childNodes)
+  foreach child in childNodes
+  val := -negamax(child, depth - 1, -β, -α, -color)
+  bestValue := max( bestValue, val )
+  α := max( α, val )
+  if α ≥ β
+  break
+  return bestValue
+
+  Initial call for Player A's root node
+  rootNegamaxValue := negamax( rootNode, depth, -∞, +∞, 1)
+  */
+
   def main() = {
     var curr = startBoard
     while (true) {
@@ -451,7 +505,12 @@ object Codpiece {
       println(moveGen(curr))
       val mv = getEnteredMove(curr)
       mv match {
-        case Some(m) => curr = play(curr, m)
+        case Some(m) =>
+          curr = play(curr, m)
+          println(curr)
+          val (score,move) = negamax(curr, 2, Int.MinValue , Int.MaxValue, false)
+          curr = play(curr,move)
+          print("Computer chose " + move + " with a score of " + score)
       }
 
     }
