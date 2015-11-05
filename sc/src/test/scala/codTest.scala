@@ -5,7 +5,7 @@ import org.scalatest.FlatSpec
 
 import Codpiece._
 
-class UserActionTest extends FlatSpec with Matchers {
+class CodpieceTest extends FlatSpec with Matchers {
 
   "basic square tests" should "pass" in {
     squares.size shouldBe 64
@@ -143,6 +143,13 @@ class UserActionTest extends FlatSpec with Matchers {
     val castle2Moves = whiteCastle(b2)
     castle2Moves.length shouldBe 1
 
+    //make sure we can't castle out of check
+    val bKingAttacked = b.makeChild()
+    bKingAttacked(f2)=bBishop
+    kingToMoveInCheck(bKingAttacked) shouldBe true
+    val castle3Moves = whiteCastle(bKingAttacked)
+    castle3Moves.length shouldBe 0
+
     val kingMovesFrome1 = kingMoveGen(b2, e1, 1)
     kingMovesFrome1.length shouldBe 3
 
@@ -173,9 +180,9 @@ class UserActionTest extends FlatSpec with Matchers {
     val b5 = b.makeChild()
     b5(e4) = bPawn
     b5(f3) = wPawn
-    println(b5)
+    //println(b5)
     val pmoves = wPawn.movegen(b5, e2, 1)
-    println(pmoves)
+    //println(pmoves)
     pmoves.length shouldBe 1
     val pMoves2 = wPawn.movegen(b5, d2, 1)
     pMoves2.length shouldBe 2
@@ -303,12 +310,13 @@ class UserActionTest extends FlatSpec with Matchers {
     perft(b, 1) shouldBe 20
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
-    perft(b, 4) shouldBe 197281 //shows king evading capture
+    //perft(b, 4) shouldBe 197281 //shows king evading capture
     //perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
-    var b2 = Codpiece.fromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
+    var b2 = Codpiece.fromFEN(kiwi)
 
+    println(b2)
     println(moveGen(b2))
     perft(b2, 1) shouldBe 48
     perft(b2, 2) shouldBe 2039

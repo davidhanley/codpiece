@@ -115,20 +115,6 @@ object Codpiece {
   def sideAttacks(sq: Int, side: Int)(implicit board: Board) = {
     val (king, knight, pawn, hsliders, vsliders) =
       if (side == -1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen)) else (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
-    /* println(board)
-    println(side)
-    println(squareToString(sq))
-    val ka = kingAttacks(sq, king)
-    val na = knightAttacks(sq, knight)
-    val pa = pawnAttacks(sq, pawn)
-    val hv = scanRays(sq, rookMoveLookup, hsliders)
-    val di = scanRays(sq, bishopMoveLookup, vsliders)
-    println(ka)
-    println(na)
-    println(pa)
-    println(hv)
-    print(hsliders)
-    println(di) */
     kingAttacks(sq, king) || knightAttacks(sq, knight) || pawnAttacks(sq, pawn) ||
       scanRays(sq, rookMoveLookup, hsliders) || scanRays(sq, bishopMoveLookup, vsliders)
   }
@@ -136,26 +122,29 @@ object Codpiece {
   def kingIsInDanger(side: Int)(implicit b: Board): Boolean = {
     if (side == -1 && Codpiece.sideAttacks(b.blackKingAt, -1)) return true
     return Codpiece.sideAttacks(b.whiteKingAt, 1)
-
   }
 
-  def canCaptureKing(implicit b: Board) = {
-    kingIsInDanger(-(b.toMove))
-  }
+  def canCaptureKing(implicit b: Board) = kingIsInDanger(-(b.toMove))
+
+  def kingToMoveInCheck(implicit b: Board) = kingIsInDanger(b.toMove)
 
   def freeAndClear(side: Int, squares: Int*)(implicit board: Board): Boolean =
-    squares.forall(sq => board(sq) == empty) && squares.forall(sideAttacks(_, side) == false)
+    squares.forall(board(_) == empty) && squares.forall(sideAttacks(_, side) == false)
 
   //TODO: this is kinda gross. Fix it
   def whiteCastle(implicit b: Board): Seq[Move] = {
-    val wkc = if (b.castlingRight('K') && freeAndClear(1, f1, g1)) Some(whiteKingsideCastle) else None
-    val wqc = if (b.castlingRight('Q') && freeAndClear(1, d1, c1) && b(b1) == empty) Some(whiteQueensideCastle) else None
+    lazy val king_not_attacked = kingToMoveInCheck == false
+    val wkc = if (b.castlingRight('K') && freeAndClear(1, f1, g1) && king_not_attacked) Some(whiteKingsideCastle) else None
+    val wqc = if (b.castlingRight('Q') && freeAndClear(1, d1, c1) && b(b1) == empty && king_not_attacked) Some(whiteQueensideCastle) else None
     List(wkc, wqc).flatMap(f => f)
   }
 
+
+  //todo: optimize the following. A lot.
   def blackCastle(implicit b: Board): Seq[Move] = {
-    val bkc = if (b.castlingRight('k') && freeAndClear(-1, f8, g8)) Some(blackKingsideCastle) else None
-    val bqc = if (b.castlingRight('q') && freeAndClear(-1, d8, c8) && b(b8) == empty) Some(blackQueensideCastle) else None
+    lazy val king_not_attacked = kingToMoveInCheck == false
+    val bkc = if (b.castlingRight('k') && freeAndClear(-1, f8, g8) && king_not_attacked) Some(blackKingsideCastle) else None
+    val bqc = if (b.castlingRight('q') && freeAndClear(-1, d8, c8) && b(b8) == empty && king_not_attacked) Some(blackQueensideCastle) else None
     List(bkc, bqc).flatMap(f => f)
   }
 
@@ -502,8 +491,10 @@ object Codpiece {
   rootNegamaxValue := negamax( rootNode, depth, -∞, +∞, 1)
   */
 
+  val kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+
   def main() = {
-    var curr = startBoard
+    var curr = fromFEN(kiwi) //startBoard
     while (true) {
       println(curr)
       println(moveGen(curr))
@@ -512,9 +503,9 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue, false)
-          curr = play(curr, moves(0))
-          println("Computer chose " + moves + " with a score of " + score)
+        /*val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue, false)
+        curr = play(curr, moves(0))
+        println("Computer chose " + moves + " with a score of " + score) */
         case None =>
 
       }
