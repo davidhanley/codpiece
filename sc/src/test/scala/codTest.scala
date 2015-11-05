@@ -169,6 +169,18 @@ class UserActionTest extends FlatSpec with Matchers {
 
     val wpmh7 = whitePawnGen(b, h7, 1)
     wpmh7.length shouldBe 4
+
+    val b5 = b.makeChild()
+    b5(e4) = bPawn
+    b5(f3) = wPawn
+    println(b5)
+    val pmoves = wPawn.movegen(b5, e2, 1)
+    println(pmoves)
+    pmoves.length shouldBe 1
+    val pMoves2 = wPawn.movegen(b5, d2, 1)
+    pMoves2.length shouldBe 2
+    val pMoves3 = wPawn.movegen(b5, f2, 1)
+    pMoves3.length shouldBe 0
   }
 
   "movegen" should "accurately generate moves" in {
@@ -186,15 +198,15 @@ class UserActionTest extends FlatSpec with Matchers {
 
     val e4ep = blackPawnTable(e4).epMoves
     e4ep.length shouldBe 2
-    println("e4ep:" + e4ep)
+
     e4ep.filter(m => m.lift == d4).length shouldBe 1
 
     val allmoves = moveGen(b2)
-    //println( "all moves move:" + allmoves )
+
     val moves = moveGen(b2).filter(m => m.to == d3)
     moves.length shouldBe 1 //the one en pesant move
     val m = moves(0)
-    //println( "ep move:" + moves )
+
     val b3 = play(b2, m)
     b3(e4) shouldBe Codpiece.empty
     b3(d3) shouldBe bPawn
@@ -291,9 +303,18 @@ class UserActionTest extends FlatSpec with Matchers {
     perft(b, 1) shouldBe 20
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
-    //perft(b, 4) shouldBe 197281 //shows king evading capture
+    perft(b, 4) shouldBe 197281 //shows king evading capture
     //perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
+
+    var b2 = Codpiece.fromFEN("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
+
+    println(moveGen(b2))
+    perft(b2, 1) shouldBe 48
+    perft(b2, 2) shouldBe 2039
+    perft(b2, 3) shouldBe 97862
+    perft(b2, 4) shouldBe 4085603
+    perft(b2, 5) shouldBe 193690690
 
   }
 }

@@ -270,7 +270,7 @@ object Codpiece {
   def pawnGen(table: IndexedSeq[PawnPackage])(b: Board, sq: Int, toMove: Int) = {
     val pp = table(sq)
     pp.singles.filter(m => b(m.to) == empty) ++
-      pp.doubles.filter(m => b(m.enPesantTarget) == empty) ++
+      pp.doubles.filter(m => (b(m.enPesantTarget) == empty) && (b(m.to) == empty)) ++
       pp.captures.filter(m => b(m.to).side == -toMove) ++
       pp.epMoves.filter(m => m.to == b.ep_target)
   }
@@ -432,11 +432,11 @@ object Codpiece {
     val line = readLine()
     val m = moves.filter(_.toString() == line)
     if (m.length == 0) {
-      println("No matching move")
+      println(line + "--no matching move")
       None
     }
     else if (m.length > 1) {
-      printf("Move is ambiguous")
+      printf(line + "--move is ambiguous")
       None
     }
     else {
@@ -445,28 +445,32 @@ object Codpiece {
   }
 
   def eval(b: Board) = {
-    var e:Int = b.material
-    for( sq <- squares ) {
+    var e: Int = b.material
+    for (sq <- squares) {
       val p = b(sq)
-      e += p.eval(b,sq)*p.side
+      e += p.eval(b, sq) * p.side
     }
     e
   }
 
-  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int, lastCapture:Boolean): (Int,Move) = {
+  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int, lastCapture: Boolean): (Int, List[Move]) = {
     var alpha = _alpha
-    if (depth <= 0 )
-      return (eval(board) * board.toMove,null)
-    if (depth <= 0)
-      alpha = Math.max(alpha,eval(board) * board.toMove)
+    if (depth <= 0 && lastCapture == false)
+      return (eval(board) * board.toMove, null)
     var bestValue = Int.MinValue
-    var bestMove:Move = null
+    if (depth <= 0) {
+      bestValue = Math.max(alpha, eval(board) * board.toMove)
+      bestValue = alpha
+    }
+    var bestMove: Move = null
+    var childLine: List[Move] = List()
     val moves = moveGen(board)
     for (move <- moves) {
-      val is_capt = board(move.to)!=empty
-      if (depth > 0 || is_capt == true ) {
+      val is_capt = board(move.to) != empty
+      if (depth > 0 || is_capt == true) {
         val child = play(board, move)
-        val (childVal, childMove) = negamax(child, depth - 1, -beta, -alpha, is_capt)
+        val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha, is_capt)
+        childLine = _childLine
         val nodeScore = -childVal
         if (nodeScore > bestValue) {
           bestValue = nodeScore
@@ -474,10 +478,10 @@ object Codpiece {
         }
         alpha = Math.max(alpha, nodeScore)
         if (alpha >= beta)
-          return (bestValue, bestMove) // or break
+          return (bestValue, List(bestMove) /*++childLine*/ ) // or break
       }
     }
-    return (bestValue,bestMove)
+    return (bestValue, List(bestMove) /*++childLine*/ )
   }
 
   /*function negamax(node, depth, α, β, color)
@@ -508,9 +512,11 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val (score,move) = negamax(curr, 2, Int.MinValue , Int.MaxValue, false)
-          curr = play(curr,move)
-          print("Computer chose " + move + " with a score of " + score)
+          val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue, false)
+          curr = play(curr, moves(0))
+          println("Computer chose " + moves + " with a score of " + score)
+        case None =>
+
       }
 
     }
