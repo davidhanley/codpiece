@@ -200,25 +200,22 @@ object Codpiece {
   }
 
   class PromotionMove(from: Int, to: Int, promotesTo: Piece) extends Move(from, to) {
+    //assert(promotesTo!=null)
     override def play(board: Board): Unit = {
       super.play(board)
       board(to) = promotesTo
     }
-
+    def promoter = promotesTo
     override def toString() = {
       super.toString() + "=" + promotesTo.glyph
     }
   }
 
-  val whitePromotePieces = List(wKnight, wBishop, wRook, wQueen)
-  val blackPromotePieces = List(bKnight, bBishop, bRook, bQueen)
-
   def pawnMoveToPromoters(m: Move): List[Move] = {
-    if (m.to < 8) whitePromotePieces.map(new PromotionMove(m.from, m.to, _))
-    else if (m.to >= a1) blackPromotePieces.map(new PromotionMove(m.from, m.to, _))
+    if (m.to < 8)  List(wKnight, wBishop, wRook, wQueen).map(new PromotionMove(m.from, m.to, _))
+    else if (m.to >= a1) List(bKnight, bBishop, bRook, bQueen).map(new PromotionMove(m.from, m.to, _))
     else List(m)
   }
-
 
   def pawnSingle(sq: Int, side: Int) = pawnMoveToPromoters(new Move(sq, sq - side * 8))
 
@@ -253,8 +250,10 @@ object Codpiece {
 
   def pawnTable(side: Int) = squares.map(pawnMoves(side) _)
 
-  val whitePawnTable = pawnTable(1)
-  val blackPawnTable = pawnTable(-1)
+  //the following 'lazy' is a band-aid to solve the issue that pawn promotion move precomputation
+  //runs before the piece classes are initialized
+  lazy val whitePawnTable = pawnTable(1)
+  lazy val blackPawnTable = pawnTable(-1)
 
   def pawnGen(table: IndexedSeq[PawnPackage])(b: Board, sq: Int, toMove: Int) = {
     val pp = table(sq)

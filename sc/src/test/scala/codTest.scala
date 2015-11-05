@@ -97,11 +97,14 @@ class CodpieceTest extends FlatSpec with Matchers {
 
     val wpee5 = whitePawnTable(e5).epMoves
     wpee5.length shouldBe 2
-    //println( "en pesants from e5 : " + wpee5 )
+
 
     val bpee4 = blackPawnTable(e4).epMoves
     bpee4.length shouldBe 2
-    //println( "en pesants from e4 : " + bpee4 )
+
+    var v = pawnMoveToPromoters(Move(e7, e8))
+    v.length shouldBe 4
+    assert(v.forall(m => m.asInstanceOf[PromotionMove].promoter != null))
   }
 
 
@@ -145,7 +148,7 @@ class CodpieceTest extends FlatSpec with Matchers {
 
     //make sure we can't castle out of check
     val bKingAttacked = b.makeChild()
-    bKingAttacked(f2)=bBishop
+    bKingAttacked(f2) = bBishop
     kingToMoveInCheck(bKingAttacked) shouldBe true
     val castle3Moves = whiteCastle(bKingAttacked)
     castle3Moves.length shouldBe 0
@@ -314,15 +317,19 @@ class CodpieceTest extends FlatSpec with Matchers {
     //perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
-    var b2 = Codpiece.fromFEN(kiwi)
+    var kiwiBoard = Codpiece.fromFEN(kiwi)
 
-    println(b2)
-    println(moveGen(b2))
-    perft(b2, 1) shouldBe 48
-    perft(b2, 2) shouldBe 2039
-    perft(b2, 3) shouldBe 97862
-    perft(b2, 4) shouldBe 4085603
-    perft(b2, 5) shouldBe 193690690
+    println(kiwiBoard)
+    println(moveGen(kiwiBoard))
+    perft(kiwiBoard, 1) shouldBe 48
+    //perft(kiwiBoard, 2) shouldBe 2039
+    //perft(kiwiBoard, 3) shouldBe 97862
+    //perft(kiwiBoard, 4) shouldBe 4085603
+    //perft(kiwiBoard, 5) shouldBe 193690690
 
+    var pos5 = Codpiece.fromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+    perft(pos5, 1) shouldBe 44
+    perft(pos5, 2) shouldBe 1486
+    perft(pos5, 3) shouldBe 62379
   }
 }
