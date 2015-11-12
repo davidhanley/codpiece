@@ -110,8 +110,8 @@ class CodpieceTest extends FlatSpec with Matchers {
   "sideattcks" should "be accurate" in {
     implicit val b = startBoard.makeChild()
 
-    sideAttacks(1,e3) shouldBe true
-    sideAttacks(1,e4) shouldBe false
+    sideAttacks(1, e3) shouldBe true
+    sideAttacks(1, e4) shouldBe false
 
 
   }
@@ -307,17 +307,32 @@ class CodpieceTest extends FlatSpec with Matchers {
     println("Time Taken:" + (et - st))
   }
 
+  def board_assertions(board: Board) = {
+    var material: Int = 0
+    var blackMaterial: Int = 0
+    var whiteMaterial: Int = 0
+
+    for (piece <- board.squares) {
+      material += piece.value
+      if (piece.value < 0) blackMaterial -= piece.value
+      if (piece.value > 0) whiteMaterial += piece.value
+    }
+
+    board.material shouldBe material
+    board.whiteMaterial shouldBe whiteMaterial
+    board.blackMaterial shouldBe blackMaterial
+  }
+
   def perft(implicit b: Board, depth: Int): Int = {
+    board_assertions(b)
     if (depth == 0) 1
     else {
       val moves = moveGen(b)
-      /*if (depth == 1) {
-        println(b)
-        println(moves)
-      }*/
       moves.map(m => {
         val b2 = play(b, m)
-        if (canCaptureKing(b2)) {/*println(b2);*/0} else perft(play(b, m), depth - 1)
+        if (canCaptureKing(b2))
+          0
+        else perft(play(b, m), depth - 1)
       }).reduce(_ + _)
     }
   }
@@ -326,14 +341,12 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   "perfttests" should "be accurate" in {
 
-    val pbb = Codpiece.fromFEN(findPromotionBugs)
-    pawnAttacks(d8,wPawn)(pbb) shouldBe true
-    sideAttacks( 1 , d8 )(pbb) shouldBe true
-
-    val tm = moveGen(pbb)
-    perft(pbb,1) shouldBe 24
-    perft(pbb,2) shouldBe 496
-    perft(pbb,3) shouldBe 9483
+    val fpb = Codpiece.fromFEN(findPromotionBugs)
+    perft(fpb, 1) shouldBe 24
+    perft(fpb, 2) shouldBe 496
+    perft(fpb, 3) shouldBe 9483
+    perft(fpb, 4) shouldBe 182838
+    perft(fpb, 5) shouldBe 3605103
 
     val b = startBoard
 
