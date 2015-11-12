@@ -291,7 +291,7 @@ object Codpiece {
 
   //basic piece definitions
   case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], eval: (Board, Int) => Int) {
-    val hashes = squares.map(x => r.nextLong())
+    val hashes = squares.map(x => if (value==0) 0L else r.nextLong())
   }
 
   val empty = Piece(" ", 0, 0, knightMoveGen, simpleEval)

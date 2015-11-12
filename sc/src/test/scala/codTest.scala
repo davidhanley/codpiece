@@ -311,16 +311,20 @@ class CodpieceTest extends FlatSpec with Matchers {
     var material: Int = 0
     var blackMaterial: Int = 0
     var whiteMaterial: Int = 0
+    var hash: Long = 0L
 
-    for (piece <- board.squares) {
+    for (sq <- squares) {
+      val piece = board(sq)
       material += piece.value
       if (piece.value < 0) blackMaterial -= piece.value
       if (piece.value > 0) whiteMaterial += piece.value
+      hash = hash ^ piece.hashes(sq)
     }
 
     board.material shouldBe material
     board.whiteMaterial shouldBe whiteMaterial
     board.blackMaterial shouldBe blackMaterial
+    board.hash shouldBe hash
   }
 
   def perft(implicit b: Board, depth: Int): Int = {
@@ -354,7 +358,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
     perft(b, 4) shouldBe 197281 //shows king evading capture
-    perft(b, 5) shouldBe 4865609
+    //perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
     val kiwiBoard = Codpiece.fromFEN(kiwi)
@@ -362,7 +366,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(kiwiBoard, 1) shouldBe 48
     perft(kiwiBoard, 2) shouldBe 2039
     perft(kiwiBoard, 3) shouldBe 97862
-    perft(kiwiBoard, 4) shouldBe 4085603
+    //perft(kiwiBoard, 4) shouldBe 4085603
     //perft(kiwiBoard, 5) shouldBe 193690690
 
     val pos5 = Codpiece.fromFEN(fenPos5)
