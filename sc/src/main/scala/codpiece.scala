@@ -114,22 +114,18 @@ object Codpiece {
 
   def sideAttacks(side: Int, sq: Int)(implicit board: Board) = {
     val (king, knight, pawn, hsliders, vsliders) =
-      if (side == 1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen)) else
-                     (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
+      if (side == 1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen))
+      else
+        (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
     kingAttacks(sq, king) || knightAttacks(sq, knight) || pawnAttacks(sq, pawn) ||
       scanRays(sq, rookMoveLookup, hsliders) || scanRays(sq, bishopMoveLookup, vsliders)
   }
 
-  /*def kingIsInDanger(side: Int, kingSquare:Int)(implicit b: Board): Boolean = {
-    if (side == -1 && Codpiece.sideAttacks(b.blackKingAt, -1)) return true
-    return Codpiece.sideAttacks(b.whiteKingAt, 1)
-  }*/
+  def king(side: Int)(implicit b: Board) = if (side == 1) b.whiteKingAt else b.blackKingAt
 
-  def king(side:Int)(implicit b: Board) = if (side==1) b.whiteKingAt else b.blackKingAt
+  def canCaptureKing(implicit b: Board) = sideAttacks(b.toMove, king(-b.toMove))
 
-  def canCaptureKing(implicit b: Board) = sideAttacks(b.toMove, king(- b.toMove))
-
-  def kingToMoveInCheck(implicit b: Board) = sideAttacks(- b.toMove, king(b.toMove ))
+  def kingToMoveInCheck(implicit b: Board) = sideAttacks(-b.toMove, king(b.toMove))
 
   def freeAndClear(side: Int, squares: Int*)(implicit board: Board): Boolean =
     squares.forall(board(_) == empty) && squares.forall(sideAttacks(side, _) == false)
@@ -208,14 +204,16 @@ object Codpiece {
       super.play(board)
       board(to) = promotesTo
     }
+
     def promoter = promotesTo
+
     override def toString() = {
       super.toString() + "=" + promotesTo.glyph
     }
   }
 
   def pawnMoveToPromoters(m: Move): List[Move] = {
-    if (m.to < 8)  List(wKnight, wBishop, wRook, wQueen).map(new PromotionMove(m.from, m.to, _))
+    if (m.to < 8) List(wKnight, wBishop, wRook, wQueen).map(new PromotionMove(m.from, m.to, _))
     else if (m.to >= a1) List(bKnight, bBishop, bRook, bQueen).map(new PromotionMove(m.from, m.to, _))
     else List(m)
   }
@@ -231,7 +229,7 @@ object Codpiece {
   def pawnCapture(sq: Int, side: Int): List[Move] = {
     val leftCapts = if (getFile(sq) != 0) pawnMoveToPromoters(new Move(sq, sq - 1 - side * 8)) else List()
     val rightCapts = if (getFile(sq) != 7) pawnMoveToPromoters(new Move(sq, sq + 1 - side * 8)) else List()
-    (leftCapts ++ rightCapts).filter( m => m.to>=0 && m.to <=63 )
+    (leftCapts ++ rightCapts).filter(m => m.to >= 0 && m.to <= 63)
   }
 
   def pawnEnPesant(sq: Int, side: Int): List[PawnEnPesant] = {
@@ -291,7 +289,7 @@ object Codpiece {
 
   //basic piece definitions
   case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], eval: (Board, Int) => Int) {
-    val hashes = squares.map(x => if (value==0) 0L else r.nextLong())
+    val hashes = squares.map(x => if (value == 0) 0L else r.nextLong())
   }
 
   val empty = Piece(" ", 0, 0, knightMoveGen, simpleEval)
@@ -347,7 +345,6 @@ object Codpiece {
     def apply(square: Int): Piece = squares(square)
 
     def update(square: Int, p: Piece) = {
-
       val removing = squares(square)
       if (removing != empty) {
         //removing piece
@@ -378,7 +375,7 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone, -toMove, castlingRight, 0, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt)
+      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt)
     }
   }
 
@@ -444,34 +441,29 @@ object Codpiece {
     e
   }
 
-  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int, lastCapture: Boolean): (Int, List[Move]) = {
+  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int): (Int, List[Move]) = {
     var alpha = _alpha
-    if (depth <= 0 && lastCapture == false)
+    if (depth <= 0)
       return (eval(board) * board.toMove, null)
     var bestValue = Int.MinValue
-    if (depth <= 0) {
-      bestValue = Math.max(alpha, eval(board) * board.toMove)
-      bestValue = alpha
-    }
+
     var bestMove: Move = null
     var childLine: List[Move] = List()
     val moves = moveGen(board)
     for (move <- moves) {
-      val is_capt = board(move.to) != empty
-      if (depth > 0 || is_capt == true) {
-        val child = play(board, move)
-        val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha, is_capt)
-        childLine = _childLine
-        val nodeScore = -childVal
-        if (nodeScore > bestValue) {
-          bestValue = nodeScore
-          bestMove = move
-        }
-        alpha = Math.max(alpha, nodeScore)
-        if (alpha >= beta)
-          return (bestValue, List(bestMove) /*++childLine*/ ) // or break
+      val child = play(board, move)
+      val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha)
+      childLine = _childLine
+      val nodeScore = -childVal
+      if (nodeScore > bestValue) {
+        bestValue = nodeScore
+        bestMove = move
       }
+      alpha = Math.max(alpha, nodeScore)
+      if (alpha >= beta)
+        return (bestValue, List(bestMove) /*++childLine*/ ) // or break
     }
+
     return (bestValue, List(bestMove) /*++childLine*/ )
   }
 
@@ -497,7 +489,7 @@ object Codpiece {
   val fenPos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
 
   def main() = {
-    var curr = fromFEN(fenPos5) //startBoard
+    var curr = startBoard
     while (true) {
       println(curr)
       println(moveGen(curr))
@@ -506,9 +498,9 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-        /*val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue, false)
-        curr = play(curr, moves(0))
-        println("Computer chose " + moves + " with a score of " + score) */
+          val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue)
+          curr = play(curr, moves(0))
+          println("Computer chose " + moves + " with a score of " + score)
         case None =>
 
       }

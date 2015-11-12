@@ -287,8 +287,6 @@ class CodpieceTest extends FlatSpec with Matchers {
     b(h5) = wQueen
     kingToMoveInCheck shouldBe true
     canCaptureKing shouldBe true
-
-
   }
 
 
@@ -300,12 +298,15 @@ class CodpieceTest extends FlatSpec with Matchers {
     for (a <- 1 to 1000000) {
       val b2 = play(b, m)
       x = x + b2.toMove
+      //canCaptureKing(b2)
+      sideAttacks(1,1)(b2)
     }
     val et = System.currentTimeMillis()
 
     println(x)
     println("Time Taken:" + (et - st))
   }
+
 
   def board_assertions(board: Board) = {
     var material: Int = 0
