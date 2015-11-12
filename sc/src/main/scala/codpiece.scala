@@ -340,7 +340,7 @@ object Codpiece {
                    var ep_target: Int,
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
-                   var whiteKingAt: Int, var blackKingAt: Int) {
+                   var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt:Int) {
 
     def apply(square: Int): Piece = squares(square)
 
@@ -375,7 +375,7 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt)
+      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt, -1)
     }
   }
 
@@ -401,7 +401,7 @@ object Codpiece {
       case "b" => -1
     }
     val ep_square: Int = Try(ep_square_str.toInt) getOrElse -1
-    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1)
+    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1, -1)
     pieceSquares.zipWithIndex.map({ case (p, sq) => if (p != empty) board(sq) = p })
     board.castlingRight = castlingRights.toSet
     board
@@ -411,6 +411,8 @@ object Codpiece {
 
   def play(board: Board, move: Move) = {
     val newBoard = board.makeChild()
+    if ( board(move.to) != empty )
+      newBoard.lastCaptureAt = move.to
     move.play(newBoard)
     newBoard
   }
@@ -498,7 +500,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val (score, moves) = negamax(curr, 2, Int.MinValue, Int.MaxValue)
+          val (score, moves) = negamax(curr, 4, Int.MinValue, Int.MaxValue)
           curr = play(curr, moves(0))
           println("Computer chose " + moves + " with a score of " + score)
         case None =>

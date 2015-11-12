@@ -289,6 +289,14 @@ class CodpieceTest extends FlatSpec with Matchers {
     canCaptureKing shouldBe true
   }
 
+  "lastCaptureAt" should "be right" in {
+    val b = startBoard
+
+    b.lastCaptureAt shouldBe -1
+
+    play(b,new Move(e2,e7)).lastCaptureAt shouldBe e7
+    play(b,new Move(e2,e6)).lastCaptureAt shouldBe -1
+  }
 
   def bench() = {
     val b = startBoard
