@@ -107,9 +107,17 @@ class CodpieceTest extends FlatSpec with Matchers {
     assert(v.forall(m => m.asInstanceOf[PromotionMove].promoter != null))
   }
 
+  "sideattcks" should "be accurate" in {
+    implicit val b = startBoard.makeChild()
+
+    sideAttacks(1,e3) shouldBe true
+    sideAttacks(1,e4) shouldBe false
+
+
+  }
 
   "movegen individual function numbers" should "be correct" in {
-    val b = startBoard
+    val b = startBoard.makeChild()
 
     val queenMovesFrome4 = queenMoveGen(b, e4, 1)
     queenMovesFrome4.length shouldBe 19
@@ -130,19 +138,19 @@ class CodpieceTest extends FlatSpec with Matchers {
     kingMovesFrome4.length shouldBe 8
 
     //king moves including castling
-    val b2 = b.makeChild()
+    val b2 = startBoard.makeChild()
     b2(e2) = Codpiece.empty
     b2(g1) = Codpiece.empty
-    freeAndClear(1, g1)(b2) shouldBe true
-    freeAndClear(1, f1)(b2) shouldBe false
-    freeAndClear(1, f1, g1)(b2) shouldBe false
+    freeAndClear(-1, g1)(b2) shouldBe true
+    freeAndClear(-1, f1)(b2) shouldBe false
+    freeAndClear(-1, f1, g1)(b2) shouldBe false
     val castleMoves = whiteCastle(b2)
     castleMoves.length shouldBe 0
 
     b2(f1) = Codpiece.empty
-    freeAndClear(1, g1)(b2) shouldBe true
-    freeAndClear(1, f1)(b2) shouldBe true
-    freeAndClear(1, f1, g1)(b2) shouldBe true
+    freeAndClear(-1, g1)(b2) shouldBe true
+    freeAndClear(-1, f1)(b2) shouldBe true
+    freeAndClear(-1, f1, g1)(b2) shouldBe true
     val castle2Moves = whiteCastle(b2)
     castle2Moves.length shouldBe 1
 
@@ -183,9 +191,9 @@ class CodpieceTest extends FlatSpec with Matchers {
     val b5 = b.makeChild()
     b5(e4) = bPawn
     b5(f3) = wPawn
-    //println(b5)
+
     val pmoves = wPawn.movegen(b5, e2, 1)
-    //println(pmoves)
+
     pmoves.length shouldBe 1
     val pMoves2 = wPawn.movegen(b5, d2, 1)
     pMoves2.length shouldBe 2
@@ -259,22 +267,30 @@ class CodpieceTest extends FlatSpec with Matchers {
     implicit val b = startBoard
 
     scanRays(e2, bishopMoveLookup, List(wBishop, wQueen)) shouldBe true
-
   }
 
   "kingAttacked" should "work" in {
-    implicit val b = startBoard.makeChild()
-    kingIsInDanger(1) shouldBe false
-    kingIsInDanger(-1) shouldBe false
+    implicit val b = startBoard.makeChild().makeChild()
+
+    b.toMove shouldBe 1
+
+    canCaptureKing(b) shouldBe false
+    kingToMoveInCheck(b) shouldBe false
 
     b(f2) = Codpiece.empty
     b(h4) = bQueen
-    kingIsInDanger(1) shouldBe true
+    b.toMove shouldBe 1
+    kingToMoveInCheck shouldBe true
+    canCaptureKing shouldBe false
 
     b(f7) = Codpiece.empty
     b(h5) = wQueen
-    kingIsInDanger(-1) shouldBe true
+    kingToMoveInCheck shouldBe true
+    canCaptureKing shouldBe true
+
+
   }
+
 
   def bench() = {
     val b = startBoard
@@ -292,44 +308,54 @@ class CodpieceTest extends FlatSpec with Matchers {
   }
 
   def perft(implicit b: Board, depth: Int): Int = {
-    if (b.toMove == 1 && kingIsInDanger(-1)) return 0
-    if (b.toMove == -1 && kingIsInDanger(1)) return 0
-    //b.material shouldBe b.squares.map(_.value).reduce(_+_)
     if (depth == 0) 1
     else {
-      //println(b)
       val moves = moveGen(b)
-      //println(moves)
+      /*if (depth == 1) {
+        println(b)
+        println(moves)
+      }*/
       moves.map(m => {
         val b2 = play(b, m)
-        if (canCaptureKing(b2)) 0 else perft(play(b, m), depth - 1)
+        if (canCaptureKing(b2)) {/*println(b2);*/0} else perft(play(b, m), depth - 1)
       }).reduce(_ + _)
     }
   }
 
+  val findPromotionBugs = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1"
+
   "perfttests" should "be accurate" in {
+
+    val pbb = Codpiece.fromFEN(findPromotionBugs)
+    pawnAttacks(d8,wPawn)(pbb) shouldBe true
+    sideAttacks( 1 , d8 )(pbb) shouldBe true
+
+    val tm = moveGen(pbb)
+    perft(pbb,1) shouldBe 24
+    perft(pbb,2) shouldBe 496
+    perft(pbb,3) shouldBe 9483
+
     val b = startBoard
 
     perft(b, 1) shouldBe 20
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
-    //perft(b, 4) shouldBe 197281 //shows king evading capture
-    //perft(b, 5) shouldBe 4865609
+    perft(b, 4) shouldBe 197281 //shows king evading capture
+    perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
-    var kiwiBoard = Codpiece.fromFEN(kiwi)
+    val kiwiBoard = Codpiece.fromFEN(kiwi)
 
-    println(kiwiBoard)
-    println(moveGen(kiwiBoard))
     perft(kiwiBoard, 1) shouldBe 48
-    //perft(kiwiBoard, 2) shouldBe 2039
-    //perft(kiwiBoard, 3) shouldBe 97862
-    //perft(kiwiBoard, 4) shouldBe 4085603
+    perft(kiwiBoard, 2) shouldBe 2039
+    perft(kiwiBoard, 3) shouldBe 97862
+    perft(kiwiBoard, 4) shouldBe 4085603
     //perft(kiwiBoard, 5) shouldBe 193690690
 
-    var pos5 = Codpiece.fromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+    val pos5 = Codpiece.fromFEN(fenPos5)
     perft(pos5, 1) shouldBe 44
     perft(pos5, 2) shouldBe 1486
     perft(pos5, 3) shouldBe 62379
+
   }
 }

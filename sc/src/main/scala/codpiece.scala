@@ -102,7 +102,7 @@ object Codpiece {
 
   def scanRay(mr: Seq[Move], pcs: List[Piece])(implicit b: Board): Boolean = {
     mr.foreach(mv => {
-      val p = b(mv.to);
+      val p = b(mv.to)
       if (p != empty) return (pcs.contains(p))
     })
     return false
@@ -112,30 +112,33 @@ object Codpiece {
     mt(sq).exists(ray => scanRay(ray, pcs))
   }
 
-  def sideAttacks(sq: Int, side: Int)(implicit board: Board) = {
+  def sideAttacks(side: Int, sq: Int)(implicit board: Board) = {
     val (king, knight, pawn, hsliders, vsliders) =
-      if (side == -1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen)) else (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
+      if (side == 1) (wKing, wKnight, wPawn, List(wRook, wQueen), List(wBishop, wQueen)) else
+                     (bKing, bKnight, bPawn, List(bRook, bQueen), List(bBishop, bQueen))
     kingAttacks(sq, king) || knightAttacks(sq, knight) || pawnAttacks(sq, pawn) ||
       scanRays(sq, rookMoveLookup, hsliders) || scanRays(sq, bishopMoveLookup, vsliders)
   }
 
-  def kingIsInDanger(side: Int)(implicit b: Board): Boolean = {
+  /*def kingIsInDanger(side: Int, kingSquare:Int)(implicit b: Board): Boolean = {
     if (side == -1 && Codpiece.sideAttacks(b.blackKingAt, -1)) return true
     return Codpiece.sideAttacks(b.whiteKingAt, 1)
-  }
+  }*/
 
-  def canCaptureKing(implicit b: Board) = kingIsInDanger(-(b.toMove))
+  def king(side:Int)(implicit b: Board) = if (side==1) b.whiteKingAt else b.blackKingAt
 
-  def kingToMoveInCheck(implicit b: Board) = kingIsInDanger(b.toMove)
+  def canCaptureKing(implicit b: Board) = sideAttacks(b.toMove, king(- b.toMove))
+
+  def kingToMoveInCheck(implicit b: Board) = sideAttacks(- b.toMove, king(b.toMove ))
 
   def freeAndClear(side: Int, squares: Int*)(implicit board: Board): Boolean =
-    squares.forall(board(_) == empty) && squares.forall(sideAttacks(_, side) == false)
+    squares.forall(board(_) == empty) && squares.forall(sideAttacks(side, _) == false)
 
   //TODO: this is kinda gross. Fix it
   def whiteCastle(implicit b: Board): Seq[Move] = {
     lazy val king_not_attacked = kingToMoveInCheck == false
-    val wkc = if (b.castlingRight('K') && freeAndClear(1, f1, g1) && king_not_attacked) Some(whiteKingsideCastle) else None
-    val wqc = if (b.castlingRight('Q') && freeAndClear(1, d1, c1) && b(b1) == empty && king_not_attacked) Some(whiteQueensideCastle) else None
+    val wkc = if (b.castlingRight('K') && freeAndClear(-1, f1, g1) && king_not_attacked) Some(whiteKingsideCastle) else None
+    val wqc = if (b.castlingRight('Q') && freeAndClear(-1, d1, c1) && b(b1) == empty && king_not_attacked) Some(whiteQueensideCastle) else None
     List(wkc, wqc).flatMap(f => f)
   }
 
@@ -143,8 +146,8 @@ object Codpiece {
   //todo: optimize the following. A lot.
   def blackCastle(implicit b: Board): Seq[Move] = {
     lazy val king_not_attacked = kingToMoveInCheck == false
-    val bkc = if (b.castlingRight('k') && freeAndClear(-1, f8, g8) && king_not_attacked) Some(blackKingsideCastle) else None
-    val bqc = if (b.castlingRight('q') && freeAndClear(-1, d8, c8) && b(b8) == empty && king_not_attacked) Some(blackQueensideCastle) else None
+    val bkc = if (b.castlingRight('k') && freeAndClear(1, f8, g8) && king_not_attacked) Some(blackKingsideCastle) else None
+    val bqc = if (b.castlingRight('q') && freeAndClear(1, d8, c8) && b(b8) == empty && king_not_attacked) Some(blackQueensideCastle) else None
     List(bkc, bqc).flatMap(f => f)
   }
 
@@ -228,7 +231,7 @@ object Codpiece {
   def pawnCapture(sq: Int, side: Int): List[Move] = {
     val leftCapts = if (getFile(sq) != 0) pawnMoveToPromoters(new Move(sq, sq - 1 - side * 8)) else List()
     val rightCapts = if (getFile(sq) != 7) pawnMoveToPromoters(new Move(sq, sq + 1 - side * 8)) else List()
-    leftCapts ++ rightCapts
+    (leftCapts ++ rightCapts).filter( m => m.to>=0 && m.to <=63 )
   }
 
   def pawnEnPesant(sq: Int, side: Int): List[PawnEnPesant] = {
@@ -244,9 +247,9 @@ object Codpiece {
 
   }
 
-  val emptyPawnPackage = PawnPackage(List(), List(), List(), List())
+  //val emptyPawnPackage = PawnPackage(List(), List(), List(), List())
 
-  def pawnMoves(side: Int)(sq: Int) = if ((sq <= h8) || (sq >= a1)) emptyPawnPackage else PawnPackage(pawnSingle(sq, side), pawnDouble(sq, side), pawnCapture(sq, side), pawnEnPesant(sq, side))
+  def pawnMoves(side: Int)(sq: Int) = PawnPackage(pawnSingle(sq, side), pawnDouble(sq, side), pawnCapture(sq, side), pawnEnPesant(sq, side))
 
   def pawnTable(side: Int) = squares.map(pawnMoves(side) _)
 
@@ -371,7 +374,7 @@ object Codpiece {
     }
 
     override def toString(): String = {
-      boardToString(squares.map(_.glyph))
+      boardToString(squares.map(_.glyph)) + "\n" + toMove
     }
 
     def makeChild() = {
@@ -491,9 +494,10 @@ object Codpiece {
   */
 
   val kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+  val fenPos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
 
   def main() = {
-    var curr = fromFEN(kiwi) //startBoard
+    var curr = fromFEN(fenPos5) //startBoard
     while (true) {
       println(curr)
       println(moveGen(curr))
