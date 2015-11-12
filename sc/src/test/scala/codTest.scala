@@ -312,19 +312,23 @@ class CodpieceTest extends FlatSpec with Matchers {
     var blackMaterial: Int = 0
     var whiteMaterial: Int = 0
     var hash: Long = 0L
+    var pawnHash: Long = 0L
 
     for (sq <- squares) {
       val piece = board(sq)
       material += piece.value
       if (piece.value < 0) blackMaterial -= piece.value
       if (piece.value > 0) whiteMaterial += piece.value
-      hash = hash ^ piece.hashes(sq)
+      val ph = piece.hashes(sq)
+      if (Math.abs(piece.value)==100) pawnHash = pawnHash ^ ph
+      hash = hash ^ ph
     }
 
     board.material shouldBe material
     board.whiteMaterial shouldBe whiteMaterial
     board.blackMaterial shouldBe blackMaterial
     board.hash shouldBe hash
+    board.pawnHash shouldBe pawnHash
   }
 
   def perft(implicit b: Board, depth: Int): Int = {

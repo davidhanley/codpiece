@@ -355,7 +355,7 @@ object Codpiece {
         if (removing.value > 0) whiteMaterial -= removing.value
         material -= removing.value
         hash ^= removing.hashes(square)
-        if (removing.value == 100) pawnHash ^= removing.hashes(square)
+        if (Math.abs(removing.value) == 100) pawnHash ^= removing.hashes(square)
       }
       squares(square) = p
       if (p.value < 0) blackMaterial -= p.value
@@ -364,7 +364,7 @@ object Codpiece {
       if (p.value == -10000) blackKingAt = square
       material += p.value
       hash ^= p.hashes(square)
-      if (p.value == 100) pawnHash ^= p.hashes(square)
+      if (Math.abs(p.value) == 100) pawnHash ^= p.hashes(square)
       if (square == e1) castlingRight = castlingRight - 'K' - 'Q'
       if (square == e8) castlingRight = castlingRight - 'k' - 'q'
       if (square == h1) castlingRight = castlingRight - 'K'
