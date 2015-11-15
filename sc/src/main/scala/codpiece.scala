@@ -1,7 +1,9 @@
 
 
 import scala.collection.immutable
+import scala.collection.immutable.HashMap
 import scala.util._
+import scala.util.control.Breaks._
 
 object Codpiece {
 
@@ -340,7 +342,7 @@ object Codpiece {
                    var ep_target: Int,
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
-                   var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt:Int) {
+                   var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt: Int) {
 
     def apply(square: Int): Piece = squares(square)
 
@@ -411,7 +413,7 @@ object Codpiece {
 
   def play(board: Board, move: Move) = {
     val newBoard = board.makeChild()
-    if ( board(move.to) != empty )
+    if (board(move.to) != empty)
       newBoard.lastCaptureAt = move.to
     move.play(newBoard)
     newBoard
@@ -420,6 +422,8 @@ object Codpiece {
   def getEnteredMove(board: Board) = {
     val moves = moveGen(board)
     val line = readLine()
+    if (line == "q")
+      throw new Exception()
     val m = moves.filter(_.toString() == line)
     if (m.length == 0) {
       println(line + "--no matching move")
@@ -443,49 +447,42 @@ object Codpiece {
     e
   }
 
+  case class HashEntry(var alpha: Int, var beta: Int, depthLeft: Int)
+
   def negamax(board: Board, depth: Int, _alpha: Int, beta: Int): (Int, List[Move]) = {
     var alpha = _alpha
-    if (depth <= 0)
-      return (eval(board) * board.toMove, null)
-    var bestValue = Int.MinValue
 
-    var bestMove: Move = null
-    var childLine: List[Move] = List()
-    val moves = moveGen(board)
+    if (depth <= 0 && board.lastCaptureAt != -1)
+      return (eval(board) * board.toMove, List())
+
+    var bestValue = Int.MinValue
+    var bestLine: List[Move] = List()
+
+    var moves = moveGen(board)
+    if (depth<=0) {
+      moves=moves.filter(m=>m.to==board.lastCaptureAt)
+      bestValue = eval(board) * board.toMove
+    }
+
     for (move <- moves) {
       val child = play(board, move)
       val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha)
-      childLine = _childLine
+      //childLine = _childLine
       val nodeScore = -childVal
       if (nodeScore > bestValue) {
         bestValue = nodeScore
-        bestMove = move
+        bestLine = List(move) ++ _childLine
       }
       alpha = Math.max(alpha, nodeScore)
-      if (alpha >= beta)
-        return (bestValue, List(bestMove) /*++childLine*/ ) // or break
+
+      if (alpha >= beta) {
+        //println(alpha, " ", beta)
+        return (bestValue, bestLine)
+      }
     }
 
-    return (bestValue, List(bestMove) /*++childLine*/ )
+    return (bestValue, bestLine)
   }
-
-  /*function negamax(node, depth, α, β, color)
-  if depth = 0 or node is a terminal node
-  return color * the heuristic value of node
-  bestValue := -∞
-  childNodes := GenerateMoves(node)
-  childNodes := OrderMoves(childNodes)
-  foreach child in childNodes
-  val := -negamax(child, depth - 1, -β, -α, -color)
-  bestValue := max( bestValue, val )
-  α := max( α, val )
-  if α ≥ β
-  break
-  return bestValue
-
-  Initial call for Player A's root node
-  rootNegamaxValue := negamax( rootNode, depth, -∞, +∞, 1)
-  */
 
   val kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
   val fenPos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
@@ -500,7 +497,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val (score, moves) = negamax(curr, 4, Int.MinValue, Int.MaxValue)
+          val (score, moves) = negamax(curr, 4, -100000, 100000)
           curr = play(curr, moves(0))
           println("Computer chose " + moves + " with a score of " + score)
         case None =>
