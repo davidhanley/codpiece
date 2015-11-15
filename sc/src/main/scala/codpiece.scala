@@ -447,45 +447,37 @@ object Codpiece {
     e
   }
 
-  case class HashEntry(var alpha: Int, var beta: Int, depthLeft: Int)
+  case class SearchTreeNode(board: Board, boxes: Array[Box])
 
+  case class Box(move: Move, child: SearchTreeNode)
+  
   def negamax(board: Board, depth: Int, _alpha: Int, beta: Int): (Int, List[Move]) = {
     var alpha = _alpha
 
     if (depth <= 0 && board.lastCaptureAt != -1)
-      return (eval(board) * board.toMove, List())
+      return (eval(board) * board.toMove, Nil)
 
-    var bestValue = Int.MinValue
-    var bestLine: List[Move] = List()
+    var bestValue = if (depth > 0) Int.MinValue else eval(board) * board.toMove
+    var bestLine: List[Move] = Nil
 
-    var moves = moveGen(board)
-    if (depth<=0) {
-      moves=moves.filter(m=>m.to==board.lastCaptureAt)
-      bestValue = eval(board) * board.toMove
-    }
+    var moves = moveGen(board).iterator
 
-    for (move <- moves) {
-      val child = play(board, move)
-      val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha)
-      //childLine = _childLine
-      val nodeScore = -childVal
-      if (nodeScore > bestValue) {
-        bestValue = nodeScore
-        bestLine = List(move) ++ _childLine
-      }
-      alpha = Math.max(alpha, nodeScore)
-
-      if (alpha >= beta) {
-        //println(alpha, " ", beta)
-        return (bestValue, bestLine)
+    while( alpha<beta && moves.hasNext ) {
+      val move = moves.next()
+      if (depth > 0 || move.to == board.lastCaptureAt) {
+        val child = play(board, move)
+        val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha)
+        val nodeScore = -childVal
+        if (nodeScore > bestValue) {
+          bestValue = nodeScore
+          bestLine = move :: _childLine
+        }
+        alpha = Math.max(alpha, nodeScore)
       }
     }
 
     return (bestValue, bestLine)
   }
-
-  val kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
-  val fenPos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
 
   def main() = {
     var curr = startBoard
@@ -503,8 +495,6 @@ object Codpiece {
         case None =>
 
       }
-
     }
   }
-
 }

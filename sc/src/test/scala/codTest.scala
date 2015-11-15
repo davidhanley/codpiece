@@ -356,6 +356,9 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   val findPromotionBugs = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1"
 
+  val kiwi = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+  val fenPos5 = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
+
   "perfttests" should "be accurate" in {
 
     val fpb = Codpiece.fromFEN(findPromotionBugs)
