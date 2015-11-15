@@ -447,51 +447,83 @@ object Codpiece {
     e
   }
 
-  case class SearchTreeNode(board: Board, boxes: Array[Box])
+  case class SearchTreeNode(board: Board) {
+    lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
+    lazy val staticEval = eval(board) * board.toMove
+  }
 
-  case class Box(move: Move, child: SearchTreeNode)
-  
-  def negamax(board: Board, depth: Int, _alpha: Int, beta: Int): (Int, List[Move]) = {
+  case class Box(board: Board, move: Move) {
+    lazy val child = SearchTreeNode(play(board, move))
+  }
+
+  case class Stats(var nodes: Int = 0, var quiesces: Int = 0, var evals: Int = 0) {
+    val start = System.currentTimeMillis()
+
+    def report() = {
+      val end = System.currentTimeMillis()
+      val seconds = (end.toDouble - start.toDouble) / 1000.0;
+      println(s"searched $nodes nodes with $quiesces quiesces and $evals evals in $seconds seconds")
+    }
+  }
+
+  def negamax(node: SearchTreeNode, depth: Int, _alpha: Int, beta: Int)(implicit stats: Stats): (Int, List[Move]) = {
     var alpha = _alpha
+    stats.nodes = stats.nodes + 1
 
-    if (depth <= 0 && board.lastCaptureAt != -1)
-      return (eval(board) * board.toMove, Nil)
+    def ev = {
+      stats.evals = stats.evals + 1; node.staticEval
+    }
 
-    var bestValue = if (depth > 0) Int.MinValue else eval(board) * board.toMove
+    if (depth <= 0 && node.board.lastCaptureAt != -1) {
+      return (ev, Nil)
+    }
+
+    var bestValue = if (depth > 0) Int.MinValue else ev
     var bestLine: List[Move] = Nil
 
-    var moves = moveGen(board).iterator
+    var children = node.boxes
 
-    while( alpha<beta && moves.hasNext ) {
-      val move = moves.next()
-      if (depth > 0 || move.to == board.lastCaptureAt) {
-        val child = play(board, move)
-        val (childVal, _childLine) = negamax(child, depth - 1, -beta, -alpha)
+    if (depth <= 0) stats.quiesces = stats.quiesces + 1
+
+    var moveNum:Int = 0
+    while (alpha < beta && moveNum<children.length) {
+      val child = children(moveNum)
+      if (depth > 0 || child.move.to == node.board.lastCaptureAt) {
+        val (childVal, _childLine) = negamax(child.child, depth - 1, -beta, -alpha)
         val nodeScore = -childVal
         if (nodeScore > bestValue) {
           bestValue = nodeScore
-          bestLine = move :: _childLine
+          bestLine = child.move :: _childLine
+          for (i <- moveNum to 1 by -1) {
+            val c = children(i); children(i)=children(i-1); children(i-1)=c
+          }
         }
         alpha = Math.max(alpha, nodeScore)
       }
+      moveNum = moveNum + 1
     }
-
     return (bestValue, bestLine)
   }
-
+  
   def main() = {
     var curr = startBoard
     while (true) {
       println(curr)
       println(moveGen(curr))
+      System.gc()
       val mv = getEnteredMove(curr)
       mv match {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val (score, moves) = negamax(curr, 4, -100000, 100000)
+          val tree = SearchTreeNode(curr)
+
+          implicit val s = Stats()
+          val (score, moves) = negamax(tree, 4, -100000, 100000)
+          s.report()
           curr = play(curr, moves(0))
           println("Computer chose " + moves + " with a score of " + score)
+
         case None =>
 
       }
