@@ -504,7 +504,24 @@ object Codpiece {
     }
     return (bestValue, bestLine)
   }
-  
+
+
+  def search(curr:Board, maxDepth:Int)= {
+    val tree = SearchTreeNode(curr)
+    implicit val s = Stats()
+    var score = 0
+    var line:List[Move] = Nil
+    for(i <- 1 to maxDepth) {
+      val (_score, _line) = negamax(tree, i, -100000, 100000)
+      score = _score
+      line = _line
+      println("Computer chose " + line + " with a score of " + score)
+    }
+    s.report()
+
+    play(curr, line(0))
+  }
+
   def main() = {
     var curr = startBoard
     while (true) {
@@ -516,13 +533,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          val tree = SearchTreeNode(curr)
-
-          implicit val s = Stats()
-          val (score, moves) = negamax(tree, 4, -100000, 100000)
-          s.report()
-          curr = play(curr, moves(0))
-          println("Computer chose " + moves + " with a score of " + score)
+          curr = search(curr,4)
 
         case None =>
 
