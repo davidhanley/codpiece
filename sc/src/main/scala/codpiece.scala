@@ -502,7 +502,8 @@ object Codpiece {
       }
       moveNum = moveNum + 1
     }
-    return (bestValue, bestLine)
+    val rv = if (bestValue<=alpha) alpha else if (bestValue>=beta) beta else bestValue
+    return (rv, bestLine)
   }
 
 
@@ -512,9 +513,23 @@ object Codpiece {
     var score = 0
     var line:List[Move] = Nil
     for(i <- 1 to maxDepth) {
-      val (_score, _line) = negamax(tree, i, -100000, 100000)
-      score = _score
-      line = _line
+      var low = -100000
+      var high = 100000
+      var exact:Option[Int] = None
+      while( exact == None ) {
+        val guess = (low+high)/2
+        //println( s"starting dept $i search with low: $low high:$high guess:$guess")
+        val (wl,wh) = (guess-2,guess+2)
+        //println(s"Window: $wl,$wh")
+        val (_score, _line) = negamax(tree, i, wl, wh)
+        score = _score
+        line = _line
+        //println( s"Final score = $score")
+        if ( score <= wl ) high = guess
+        else if ( score >= wh ) low = guess
+        else exact = Some(score)
+        //println( "")
+      }
       println("Computer chose " + line + " with a score of " + score)
     }
     s.report()
