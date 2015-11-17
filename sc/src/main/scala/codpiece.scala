@@ -470,9 +470,7 @@ object Codpiece {
     var alpha = _alpha
     stats.nodes = stats.nodes + 1
 
-    def ev = {
-      stats.evals = stats.evals + 1; node.staticEval
-    }
+    def ev = { stats.evals = stats.evals + 1; node.staticEval }
 
     if (depth <= 0 && node.board.lastCaptureAt != -1) {
       return (ev, Nil)
@@ -502,8 +500,7 @@ object Codpiece {
       }
       moveNum = moveNum + 1
     }
-    val rv = if (bestValue<=alpha) alpha else if (bestValue>=beta) beta else bestValue
-    return (rv, bestLine)
+    return (bestValue, bestLine)
   }
 
 
