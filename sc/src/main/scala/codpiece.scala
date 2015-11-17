@@ -286,29 +286,28 @@ object Codpiece {
     3, 5, 10, 15, 15, 10, 5, 3,
     0, 3, 5, 10, 10, 5, 3, 0)
 
-  def simpleEval(b: Board, sq: Int): Int = centralize(sq)
-
+  val negCentralize = centralize.map( sq => -sq )
 
   //basic piece definitions
-  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], eval: (Board, Int) => Int) {
+  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], simpleEval: Array[Int]) {
     val hashes = squares.map(x => if (value == 0) 0L else r.nextLong())
   }
 
-  val empty = Piece(" ", 0, 0, knightMoveGen, simpleEval)
+  val empty = Piece(" ", 0, 0, knightMoveGen, centralize)
 
-  val wPawn = Piece("P", 1, 100, whitePawnGen, simpleEval)
-  val wKnight = Piece("N", 1, 325, knightMoveGen, simpleEval)
-  val wBishop = Piece("B", 1, 350, bishopMoveGen, simpleEval)
-  val wRook = Piece("R", 1, 500, rookMoveGen, simpleEval)
-  val wQueen = Piece("Q", 1, 900, queenMoveGen, simpleEval)
-  val wKing = Piece("K", 1, 10000, kingMoveGen, (b, sq) => -simpleEval(b, sq))
+  val wPawn = Piece("P", 1, 100, whitePawnGen, centralize)
+  val wKnight = Piece("N", 1, 325, knightMoveGen, centralize)
+  val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize)
+  val wRook = Piece("R", 1, 500, rookMoveGen, centralize)
+  val wQueen = Piece("Q", 1, 900, queenMoveGen, centralize)
+  val wKing = Piece("K", 1, 10000, kingMoveGen, negCentralize)
 
-  val bPawn = Piece("p", -1, -100, blackPawnGen, simpleEval)
-  val bKnight = Piece("n", -1, -325, knightMoveGen, simpleEval)
-  val bBishop = Piece("b", -1, -350, bishopMoveGen, simpleEval)
-  val bRook = Piece("r", -1, -500, rookMoveGen, simpleEval)
-  val bQueen = Piece("q", -1, -900, queenMoveGen, simpleEval)
-  val bKing = Piece("k", -1, -10000, kingMoveGen, (b, sq) => -simpleEval(b, sq))
+  val bPawn = Piece("p", -1, -100, blackPawnGen, centralize)
+  val bKnight = Piece("n", -1, -325, knightMoveGen, centralize)
+  val bBishop = Piece("b", -1, -350, bishopMoveGen, centralize)
+  val bRook = Piece("r", -1, -500, rookMoveGen, centralize)
+  val bQueen = Piece("q", -1, -900, queenMoveGen, centralize)
+  val bKing = Piece("k", -1, -10000, kingMoveGen, negCentralize)
 
   val pieces = List(
     empty,
@@ -442,7 +441,7 @@ object Codpiece {
     var e: Int = b.material
     for (sq <- squares) {
       val p = b(sq)
-      e += p.eval(b, sq) * p.side
+      e += p.simpleEval(sq) * p.side
     }
     e
   }
