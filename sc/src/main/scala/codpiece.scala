@@ -467,7 +467,7 @@ object Codpiece {
     stats.nodes = stats.nodes + 1
 
 
-    if (depth <= 0 && node.board.lastCaptureAt != -1) {
+    if (depth <= 0 && node.board.lastCaptureAt == -1) {
       return (node.staticEval, Nil)
     }
 
@@ -540,7 +540,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          curr = search(curr, 4)
+          curr = search(curr, 5)
 
         case None =>
 
