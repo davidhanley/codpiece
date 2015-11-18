@@ -444,20 +444,21 @@ object Codpiece {
 
   case class SearchTreeNode(board: Board) {
     lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
-    lazy val staticEval = board.simpleEval * board.toMove
+    def staticEval = board.simpleEval * board.toMove
   }
 
   case class Box(board: Board, move: Move) {
-    lazy val child = SearchTreeNode(play(board, move))
+    private var _child:SearchTreeNode = null
+    def child = { if ( _child == null ) _child = SearchTreeNode(play(board, move)); _child }
   }
 
-  case class Stats(var nodes: Int = 0, var quiesces: Int = 0, var evals: Int = 0) {
+  case class Stats(var nodes: Int = 0, var quiesces: Int = 0) {
     val start = System.currentTimeMillis()
 
     def report() = {
       val end = System.currentTimeMillis()
       val seconds = (end.toDouble - start.toDouble) / 1000.0;
-      println(s"searched $nodes nodes with $quiesces quiesces and $evals evals in $seconds seconds")
+      println(s"searched $nodes nodes with $quiesces quiesces in $seconds seconds")
     }
   }
 
@@ -465,15 +466,12 @@ object Codpiece {
     var alpha = _alpha
     stats.nodes = stats.nodes + 1
 
-    def ev = {
-      stats.evals = stats.evals + 1; node.staticEval
-    }
 
     if (depth <= 0 && node.board.lastCaptureAt != -1) {
-      return (ev, Nil)
+      return (node.staticEval, Nil)
     }
 
-    var bestValue = if (depth > 0) Int.MinValue else ev
+    var bestValue = if (depth > 0) Int.MinValue else node.staticEval
     var bestLine: List[Move] = Nil
 
     var children = node.boxes
@@ -507,12 +505,12 @@ object Codpiece {
     var score = 0
     var line: List[Move] = Nil
     for (i <- 1 to maxDepth) {
-      var low = -100000
-      var high = 100000
+      var low = -20000
+      var high = 20000
       var exact: Option[Int] = None
       while (exact == None) {
         val guess = (low + high) / 2
-        //println( s"starting dept $i search with low: $low high:$high guess:$guess")
+        println( s"starting dept $i search with low: $low high:$high guess:$guess")
         val (wl, wh) = (guess - 2, guess + 2)
         //println(s"Window: $wl,$wh")
         val (_score, _line) = negamax(tree, i, wl, wh)
