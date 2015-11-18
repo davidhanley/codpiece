@@ -294,8 +294,8 @@ class CodpieceTest extends FlatSpec with Matchers {
 
     b.lastCaptureAt shouldBe -1
 
-    play(b,new Move(e2,e7)).lastCaptureAt shouldBe e7
-    play(b,new Move(e2,e6)).lastCaptureAt shouldBe -1
+    play(b, new Move(e2, e7)).lastCaptureAt shouldBe e7
+    play(b, new Move(e2, e6)).lastCaptureAt shouldBe -1
   }
 
   def bench() = {
@@ -307,7 +307,7 @@ class CodpieceTest extends FlatSpec with Matchers {
       val b2 = play(b, m)
       x = x + b2.toMove
       //canCaptureKing(b2)
-      sideAttacks(1,1)(b2)
+      sideAttacks(1, 1)(b2)
     }
     val et = System.currentTimeMillis()
 
@@ -320,7 +320,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     var e: Int = board.material
     for (sq <- squares) {
       val p = board(sq)
-        e += p.simpleEval(sq)
+      e += p.simpleEval(sq)
     }
     e
   }
@@ -338,7 +338,7 @@ class CodpieceTest extends FlatSpec with Matchers {
       if (piece.value < 0) blackMaterial -= piece.value
       if (piece.value > 0) whiteMaterial += piece.value
       val ph = piece.hashes(sq)
-      if (Math.abs(piece.value)==100) pawnHash = pawnHash ^ ph
+      if (Math.abs(piece.value) == 100) pawnHash = pawnHash ^ ph
       hash = hash ^ ph
     }
 

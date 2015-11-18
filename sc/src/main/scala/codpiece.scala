@@ -286,8 +286,8 @@ object Codpiece {
     3, 5, 10, 15, 15, 10, 5, 3,
     0, 3, 5, 10, 10, 5, 3, 0)
 
-  val negCentralize = centralize.map( sq => -sq )
-  val flat = centralize.map( sq => 0 )
+  val negCentralize = centralize.map(sq => -sq)
+  val flat = centralize.map(sq => 0)
 
   //basic piece definitions
   case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], simpleEval: Array[Int]) {
@@ -343,7 +343,7 @@ object Codpiece {
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
                    var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt: Int,
-                   var simpleEval:Int ) {
+                   var simpleEval: Int) {
 
     def apply(square: Int): Piece = squares(square)
 
@@ -465,7 +465,9 @@ object Codpiece {
     var alpha = _alpha
     stats.nodes = stats.nodes + 1
 
-    def ev = { stats.evals = stats.evals + 1; node.staticEval }
+    def ev = {
+      stats.evals = stats.evals + 1; node.staticEval
+    }
 
     if (depth <= 0 && node.board.lastCaptureAt != -1) {
       return (ev, Nil)
@@ -478,8 +480,8 @@ object Codpiece {
 
     if (depth <= 0) stats.quiesces = stats.quiesces + 1
 
-    var moveNum:Int = 0
-    while (alpha < beta && moveNum<children.length) {
+    var moveNum: Int = 0
+    while (alpha < beta && moveNum < children.length) {
       val child = children(moveNum)
       if (depth > 0 || child.move.to == node.board.lastCaptureAt) {
         val (childVal, _childLine) = negamax(child.child, depth - 1, -beta, -alpha)
@@ -488,7 +490,7 @@ object Codpiece {
           bestValue = nodeScore
           bestLine = child.move :: _childLine
           for (i <- moveNum to 1 by -1) {
-            val c = children(i); children(i)=children(i-1); children(i-1)=c
+            val c = children(i); children(i) = children(i - 1); children(i - 1) = c
           }
         }
         alpha = Math.max(alpha, nodeScore)
@@ -499,26 +501,26 @@ object Codpiece {
   }
 
 
-  def search(curr:Board, maxDepth:Int)= {
+  def search(curr: Board, maxDepth: Int) = {
     val tree = SearchTreeNode(curr)
     implicit val s = Stats()
     var score = 0
-    var line:List[Move] = Nil
-    for(i <- 1 to maxDepth) {
+    var line: List[Move] = Nil
+    for (i <- 1 to maxDepth) {
       var low = -100000
       var high = 100000
-      var exact:Option[Int] = None
-      while( exact == None ) {
-        val guess = (low+high)/2
+      var exact: Option[Int] = None
+      while (exact == None) {
+        val guess = (low + high) / 2
         //println( s"starting dept $i search with low: $low high:$high guess:$guess")
-        val (wl,wh) = (guess-2,guess+2)
+        val (wl, wh) = (guess - 2, guess + 2)
         //println(s"Window: $wl,$wh")
         val (_score, _line) = negamax(tree, i, wl, wh)
         score = _score
         line = _line
         //println( s"Final score = $score")
-        if ( score <= wl ) high = guess
-        else if ( score >= wh ) low = guess
+        if (score <= wl) high = guess
+        else if (score >= wh) low = guess
         else exact = Some(score)
         //println( "")
       }
@@ -540,7 +542,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          curr = search(curr,4)
+          curr = search(curr, 4)
 
         case None =>
 
