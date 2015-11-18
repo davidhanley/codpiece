@@ -287,27 +287,28 @@ object Codpiece {
     0, 3, 5, 10, 10, 5, 3, 0)
 
   val negCentralize = centralize.map( sq => -sq )
+  val flat = centralize.map( sq => 0 )
 
   //basic piece definitions
   case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], simpleEval: Array[Int]) {
     val hashes = squares.map(x => if (value == 0) 0L else r.nextLong())
   }
 
-  val empty = Piece(" ", 0, 0, knightMoveGen, centralize)
+  val empty = Piece(" ", 0, 0, knightMoveGen, flat)
 
   val wPawn = Piece("P", 1, 100, whitePawnGen, centralize)
   val wKnight = Piece("N", 1, 325, knightMoveGen, centralize)
   val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize)
   val wRook = Piece("R", 1, 500, rookMoveGen, centralize)
-  val wQueen = Piece("Q", 1, 900, queenMoveGen, centralize)
+  val wQueen = Piece("Q", 1, 900, queenMoveGen, flat)
   val wKing = Piece("K", 1, 10000, kingMoveGen, negCentralize)
 
-  val bPawn = Piece("p", -1, -100, blackPawnGen, centralize)
-  val bKnight = Piece("n", -1, -325, knightMoveGen, centralize)
-  val bBishop = Piece("b", -1, -350, bishopMoveGen, centralize)
-  val bRook = Piece("r", -1, -500, rookMoveGen, centralize)
-  val bQueen = Piece("q", -1, -900, queenMoveGen, centralize)
-  val bKing = Piece("k", -1, -10000, kingMoveGen, negCentralize)
+  val bPawn = Piece("p", -1, -100, blackPawnGen, negCentralize)
+  val bKnight = Piece("n", -1, -325, knightMoveGen, negCentralize)
+  val bBishop = Piece("b", -1, -350, bishopMoveGen, negCentralize)
+  val bRook = Piece("r", -1, -500, rookMoveGen, negCentralize)
+  val bQueen = Piece("q", -1, -900, queenMoveGen, flat)
+  val bKing = Piece("k", -1, -10000, kingMoveGen, centralize)
 
   val pieces = List(
     empty,
@@ -341,7 +342,8 @@ object Codpiece {
                    var ep_target: Int,
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
-                   var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt: Int) {
+                   var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt: Int,
+                   var simpleEval:Int ) {
 
     def apply(square: Int): Piece = squares(square)
 
@@ -351,7 +353,9 @@ object Codpiece {
         //removing piece
         if (removing.value < 0) blackMaterial += removing.value
         if (removing.value > 0) whiteMaterial -= removing.value
+
         material -= removing.value
+        simpleEval -= (removing.value + removing.simpleEval(square))
         hash ^= removing.hashes(square)
         if (Math.abs(removing.value) == 100) pawnHash ^= removing.hashes(square)
       }
@@ -361,6 +365,7 @@ object Codpiece {
       if (p.value == 10000) whiteKingAt = square
       if (p.value == -10000) blackKingAt = square
       material += p.value
+      simpleEval += p.value + p.simpleEval(square)
       hash ^= p.hashes(square)
       if (Math.abs(p.value) == 100) pawnHash ^= p.hashes(square)
       if (square == e1) castlingRight = castlingRight - 'K' - 'Q'
@@ -376,7 +381,7 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt, -1)
+      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt, -1, simpleEval)
     }
   }
 
@@ -402,7 +407,7 @@ object Codpiece {
       case "b" => -1
     }
     val ep_square: Int = Try(ep_square_str.toInt) getOrElse -1
-    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1, -1)
+    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1, -1, 0)
     pieceSquares.zipWithIndex.map({ case (p, sq) => if (p != empty) board(sq) = p })
     board.castlingRight = castlingRights.toSet
     board
@@ -437,18 +442,9 @@ object Codpiece {
     }
   }
 
-  def eval(b: Board) = {
-    var e: Int = b.material
-    for (sq <- squares) {
-      val p = b(sq)
-      e += p.simpleEval(sq) * p.side
-    }
-    e
-  }
-
   case class SearchTreeNode(board: Board) {
     lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
-    lazy val staticEval = eval(board) * board.toMove
+    lazy val staticEval = board.simpleEval * board.toMove
   }
 
   case class Box(board: Board, move: Move) {
