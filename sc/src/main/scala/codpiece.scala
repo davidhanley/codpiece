@@ -7,6 +7,11 @@ import scala.util.control.Breaks._
 
 object Codpiece {
 
+  //TODOS:
+  //proper mate-handling code
+  //tree pruning for reduced memory use
+  //pawn structure & passed pawns
+
   val squares = 0 to 63
 
   val (a8, b8, c8, d8, e8, f8, g8, h8) = (0, 1, 2, 3, 4, 5, 6, 7)
@@ -362,8 +367,8 @@ object Codpiece {
       squares(square) = p
       if (p.value < 0) blackMaterial -= p.value
       if (p.value > 0) whiteMaterial += p.value
-      if (p.value == 10000) whiteKingAt = square
-      if (p.value == -10000) blackKingAt = square
+      if (p == wKing) whiteKingAt = square
+      if (p == bKing) blackKingAt = square
       material += p.value
       simpleEval += p.value + p.simpleEval(square)
       hash ^= p.hashes(square)
@@ -450,6 +455,7 @@ object Codpiece {
   case class Box(board: Board, move: Move) {
     private var _child:SearchTreeNode = null
     def child = { if ( _child == null ) _child = SearchTreeNode(play(board, move)); _child }
+    def clear = { if ( _child != null ) { /*print("*");*/ _child = null} }
   }
 
   case class Stats(var nodes: Int = 0, var quiesces: Int = 0) {
@@ -495,6 +501,12 @@ object Codpiece {
       }
       moveNum = moveNum + 1
     }
+    moveNum = Math.min(moveNum,5)
+    while( moveNum < children.length) {
+      children(moveNum).clear
+      moveNum = moveNum + 1
+    }
+
     return (bestValue, bestLine)
   }
 
@@ -540,7 +552,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          curr = search(curr, 5)
+          curr = search(curr, 6)
 
         case None =>
 
