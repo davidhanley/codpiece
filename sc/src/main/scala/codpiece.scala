@@ -341,6 +341,7 @@ object Codpiece {
     sb.toString
   }
 
+
   case class Board(squares: Array[Piece],
                    toMove: Int,
                    var castlingRight: Set[Char],
@@ -363,12 +364,12 @@ object Codpiece {
 
         if (removing == wPawn) {
           whitePawnCount = whitePawnCount - 1
-          whitePawnMap = whitePawnMap & (1L << square)
+          whitePawnMap = whitePawnMap & bitPawn(square)
         }
 
         if (removing == bPawn) {
           blackPawnCount = blackPawnCount - 1
-          blackPawnMap = blackPawnMap & (1L << square)
+          blackPawnMap = blackPawnMap & bitPawn(square)
         }
 
         material -= removing.value
@@ -387,12 +388,12 @@ object Codpiece {
       if (Math.abs(p.value) == 100) pawnHash ^= p.hashes(square)
       if (p == wPawn) {
         whitePawnCount = whitePawnCount + 1
-        whitePawnMap = whitePawnMap | (1L << square)
+        whitePawnMap = whitePawnMap | bitPawn(square)
       }
 
       if (p == bPawn) {
         blackPawnCount = blackPawnCount + 1
-        blackPawnMap = blackPawnMap | (1L << square)
+        blackPawnMap = blackPawnMap | bitPawn(square)
       }
       if (square == e1) castlingRight = castlingRight - 'K' - 'Q'
       if (square == e8) castlingRight = castlingRight - 'k' - 'q'
@@ -413,6 +414,7 @@ object Codpiece {
         whitePawnMap, blackPawnMap, whitePawnCount, blackPawnCount)
     }
   }
+
 
   def startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -471,22 +473,46 @@ object Codpiece {
     }
   }
 
+  //The following vals need to be computed once
   val IsolatedPawnPenalty = 20
   val doubledPawnPenalty = 20
 
+  def bitPawn(square: Int) = 1L << square
+
+  val pawnColumn = (a7 to a2 by 8).map(bitPawn).reduce(_ | _)
+
+  def pawnTrace(sqaure: Int, direction: Int): Long = {
+    val nextSquare = sqaure + direction * 8
+    if (nextSquare > h8 && nextSquare < a1) (bitPawn(nextSquare) | pawnTrace(nextSquare, direction)) else 0L
+  }
+
+  def pawnMask(direction: Int)(sq: Int) = {
+    pawnTrace(sq, direction) |
+      (if (getFile(sq) != 0) pawnTrace(sq - 1, direction) else 0L) |
+      (if (getFile(sq) != 7) pawnTrace(sq + 1, direction) else 0L)
+  }
+
+  val whitePassedPawnMasks = squares.map(pawnMask(-1) _)
+  val blackPassedPawnMasks = squares.map(pawnMask(1) _)
+
   case class PawnEval(val board: Board) {
-    var i = 0
+    var timesUsed = 0
 
-    def reset = i = 0
+    def reset = timesUsed = 0
 
-    def inc = i = i + 1
+    def inc = timesUsed = timesUsed + 1
 
+    def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn >> col)
+
+    def whitePawnPassedAt(sq: Int): Boolean = (whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L
+
+    def blackPawnPassedAt(sq: Int): Boolean = (blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L
   }
 
   val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()
 
   def ageAndClearPawnHash = {
-    val keysToDrop = pawnEvalHash.toSeq.filter(tup => tup._2.i == 0).map(tup => tup._1)
+    val keysToDrop = pawnEvalHash.toSeq.filter(tup => tup._2.timesUsed == 0).map(tup => tup._1)
     println(s"${keysToDrop.size} keys aged out of the pawn hash")
     for (key <- keysToDrop) {
       pawnEvalHash.remove(key)

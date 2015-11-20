@@ -298,6 +298,31 @@ class CodpieceTest extends FlatSpec with Matchers {
     play(b, new Move(e2, e6)).lastCaptureAt shouldBe -1
   }
 
+  "passed pawn tests" should "be correct" in {
+    val pe = PawnEval(startBoard)
+
+    pe.whitePawnPassedAt(e2) shouldBe false
+    pe.whitePawnPassedAt(a2) shouldBe false
+    pe.whitePawnPassedAt(h2) shouldBe false
+
+    pe.whitePawnPassedAt(e6) shouldBe false
+
+    pe.whitePawnPassedAt(e7) shouldBe true
+    pe.whitePawnPassedAt(a7) shouldBe true
+    pe.whitePawnPassedAt(h7) shouldBe true
+
+    pe.blackPawnPassedAt(e2) shouldBe true
+    pe.blackPawnPassedAt(a2) shouldBe true
+    pe.blackPawnPassedAt(h2) shouldBe true
+
+    pe.blackPawnPassedAt(e7) shouldBe false
+    pe.blackPawnPassedAt(a7) shouldBe false
+    pe.blackPawnPassedAt(h7) shouldBe false
+
+    pe.blackPawnPassedAt(e6) shouldBe false
+
+  }
+
   def bench() = {
     val b = startBoard
     val st = System.currentTimeMillis()
@@ -346,11 +371,11 @@ class CodpieceTest extends FlatSpec with Matchers {
       hash = hash ^ ph
       if (piece == wPawn) {
         whitePawnCount = whitePawnCount + 1
-        whitePawnMap = whitePawnMap | (1L << sq)
+        whitePawnMap = whitePawnMap | bitPawn(sq)
       }
       if (piece == bPawn) {
         blackPawnCount = blackPawnCount + 1
-        blackPawnMap = blackPawnMap | (1L << sq)
+        blackPawnMap = blackPawnMap | bitPawn(sq)
       }
     }
 
@@ -389,7 +414,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(fpb, 2) shouldBe 496
     perft(fpb, 3) shouldBe 9483
     perft(fpb, 4) shouldBe 182838
-    perft(fpb, 5) shouldBe 3605103
+    //perft(fpb, 5) shouldBe 3605103
 
     val b = startBoard
 
@@ -405,7 +430,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(kiwiBoard, 1) shouldBe 48
     perft(kiwiBoard, 2) shouldBe 2039
     perft(kiwiBoard, 3) shouldBe 97862
-    perft(kiwiBoard, 4) shouldBe 4085603
+    //perft(kiwiBoard, 4) shouldBe 4085603
     //perft(kiwiBoard, 5) shouldBe 193690690
 
     val pos5 = Codpiece.fromFEN(fenPos5)
