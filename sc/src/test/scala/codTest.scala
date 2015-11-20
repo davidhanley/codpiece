@@ -331,6 +331,10 @@ class CodpieceTest extends FlatSpec with Matchers {
     var whiteMaterial: Int = 0
     var hash: Long = 0L
     var pawnHash: Long = 0L
+    var whitePawnCount = 0
+    var blackPawnCount = 0
+    var whitePawnMap = 0L
+    var blackPawnMap = 0L
 
     for (sq <- squares) {
       val piece = board(sq)
@@ -340,6 +344,14 @@ class CodpieceTest extends FlatSpec with Matchers {
       val ph = piece.hashes(sq)
       if (Math.abs(piece.value) == 100) pawnHash = pawnHash ^ ph
       hash = hash ^ ph
+      if (piece == wPawn) {
+        whitePawnCount = whitePawnCount + 1
+        whitePawnMap = whitePawnMap | (1L << sq)
+      }
+      if (piece == bPawn) {
+        blackPawnCount = blackPawnCount + 1
+        blackPawnMap = blackPawnMap | (1L << sq)
+      }
     }
 
     board.material shouldBe material

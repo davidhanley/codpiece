@@ -1,6 +1,6 @@
 
 
-import scala.collection.immutable
+import scala.collection.{SortedSet, immutable}
 import scala.collection.immutable.HashMap
 import scala.util._
 import scala.util.control.Breaks._
@@ -348,7 +348,9 @@ object Codpiece {
                    var material: Int, var whiteMaterial: Int, var blackMaterial: Int,
                    var hash: Long, var pawnHash: Long,
                    var whiteKingAt: Int, var blackKingAt: Int, var lastCaptureAt: Int,
-                   var simpleEval: Int) {
+                   var simpleEval: Int,
+                   var whitePawnMap: Long, var blackPawnMap: Long,
+                   var whitePawnCount: Int, var blackPawnCount: Int) {
 
     def apply(square: Int): Piece = squares(square)
 
@@ -358,6 +360,16 @@ object Codpiece {
         //removing piece
         if (removing.value < 0) blackMaterial += removing.value
         if (removing.value > 0) whiteMaterial -= removing.value
+
+        if (removing == wPawn) {
+          whitePawnCount = whitePawnCount - 1
+          whitePawnMap = whitePawnMap & (1L << square)
+        }
+
+        if (removing == bPawn) {
+          blackPawnCount = blackPawnCount - 1
+          blackPawnMap = blackPawnMap & (1L << square)
+        }
 
         material -= removing.value
         simpleEval -= (removing.value + removing.simpleEval(square))
@@ -373,6 +385,15 @@ object Codpiece {
       simpleEval += p.value + p.simpleEval(square)
       hash ^= p.hashes(square)
       if (Math.abs(p.value) == 100) pawnHash ^= p.hashes(square)
+      if (p == wPawn) {
+        whitePawnCount = whitePawnCount + 1
+        whitePawnMap = whitePawnMap | (1L << square)
+      }
+
+      if (p == bPawn) {
+        blackPawnCount = blackPawnCount + 1
+        blackPawnMap = blackPawnMap | (1L << square)
+      }
       if (square == e1) castlingRight = castlingRight - 'K' - 'Q'
       if (square == e8) castlingRight = castlingRight - 'k' - 'q'
       if (square == h1) castlingRight = castlingRight - 'K'
@@ -386,7 +407,10 @@ object Codpiece {
     }
 
     def makeChild() = {
-      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial, hash, pawnHash, whiteKingAt, blackKingAt, -1, simpleEval)
+      Board(squares.clone, -toMove, castlingRight, -1, material, whiteMaterial, blackMaterial,
+        hash, pawnHash,
+        whiteKingAt, blackKingAt, -1, simpleEval,
+        whitePawnMap, blackPawnMap, whitePawnCount, blackPawnCount)
     }
   }
 
@@ -412,7 +436,7 @@ object Codpiece {
       case "b" => -1
     }
     val ep_square: Int = Try(ep_square_str.toInt) getOrElse -1
-    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1, -1, 0)
+    val board = Board(pieceSquares.map(_ => empty).toArray, toMove, Set(), ep_square, 0, 0, 0, 0, 0, -1, -1, -1, 0, 0, 0, 0, 0)
     pieceSquares.zipWithIndex.map({ case (p, sq) => if (p != empty) board(sq) = p })
     board.castlingRight = castlingRights.toSet
     board
@@ -447,15 +471,56 @@ object Codpiece {
     }
   }
 
+  val IsolatedPawnPenalty = 20
+  val doubledPawnPenalty = 20
+
+  case class PawnEval(val board: Board) {
+    var i = 0
+
+    def reset = i = 0
+
+    def inc = i = i + 1
+
+  }
+
+  val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()
+
+  def ageAndClearPawnHash = {
+    val keysToDrop = pawnEvalHash.toSeq.filter(tup => tup._2.i == 0).map(tup => tup._1)
+    println(s"${keysToDrop.size} keys aged out of the pawn hash")
+    for (key <- keysToDrop) {
+      pawnEvalHash.remove(key)
+    }
+    pawnEvalHash.foreach(tup => tup._2.reset)
+  }
+
+  def slowBoardEval(board: Board): Int = {
+    if (pawnEvalHash.contains(board.pawnHash) == false) {
+      pawnEvalHash += (board.pawnHash -> PawnEval(board))
+    }
+    pawnEvalHash.get(board.pawnHash).get.inc
+    0
+  }
+
   case class SearchTreeNode(board: Board) {
     lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
-    def staticEval = board.simpleEval * board.toMove
+    val fastEval = board.simpleEval * board.toMove
+    val slowEval = slowBoardEval(board) * board.toMove
   }
 
   case class Box(board: Board, move: Move) {
-    private var _child:SearchTreeNode = null
-    def child = { if ( _child == null ) _child = SearchTreeNode(play(board, move)); _child }
-    def clear = { if ( _child != null ) { /*print("*");*/ _child = null} }
+    private var _child: SearchTreeNode = null
+
+    def child = {
+      if (_child == null) _child = SearchTreeNode(play(board, move));
+      _child
+    }
+
+    def clear = {
+      if (_child != null) {
+        /*print("*");*/ _child = null
+      }
+    }
   }
 
   case class Stats(var nodes: Int = 0, var quiesces: Int = 0) {
@@ -474,10 +539,10 @@ object Codpiece {
 
 
     if (depth <= 0 && node.board.lastCaptureAt == -1) {
-      return (node.staticEval, Nil)
+      return (node.fastEval, Nil)
     }
 
-    var bestValue = if (depth > 0) Int.MinValue else node.staticEval
+    var bestValue = if (depth > 0) Int.MinValue else node.fastEval
     var bestLine: List[Move] = Nil
 
     var children = node.boxes
@@ -501,8 +566,8 @@ object Codpiece {
       }
       moveNum = moveNum + 1
     }
-    moveNum = Math.min(moveNum,5)
-    while( moveNum < children.length) {
+    moveNum = Math.min(moveNum, 5)
+    while (moveNum < children.length) {
       children(moveNum).clear
       moveNum = moveNum + 1
     }
@@ -522,7 +587,7 @@ object Codpiece {
       var exact: Option[Int] = None
       while (exact == None) {
         val guess = (low + high) / 2
-        println( s"starting dept $i search with low: $low high:$high guess:$guess")
+        println(s"starting dept $i search with low: $low high:$high guess:$guess")
         val (wl, wh) = (guess - 2, guess + 2)
         //println(s"Window: $wl,$wh")
         val (_score, _line) = negamax(tree, i, wl, wh)
@@ -545,6 +610,8 @@ object Codpiece {
     var curr = startBoard
     while (true) {
       println(curr)
+      ageAndClearPawnHash
+      println("Pawn Hash size:" + pawnEvalHash.size)
       println(moveGen(curr))
       System.gc()
       val mv = getEnteredMove(curr)
