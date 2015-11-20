@@ -323,6 +323,18 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   }
 
+  "rooks" should "like the seventh rank and open files" in {
+    wRook.simpleEval(e2) shouldBe 0
+    wRook.simpleEval(a5) shouldBe 0
+    wRook.simpleEval(e7) shouldBe RookSeventhBonus
+    wRook.simpleEval(a7) shouldBe RookSeventhBonus
+
+    bRook.simpleEval(e2) shouldBe RookSeventhBonus
+    bRook.simpleEval(a2) shouldBe RookSeventhBonus
+    bRook.simpleEval(a5) shouldBe 0
+    bRook.simpleEval(e7) shouldBe 0
+  }
+
   def bench() = {
     val b = startBoard
     val st = System.currentTimeMillis()

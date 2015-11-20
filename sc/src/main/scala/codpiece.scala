@@ -299,19 +299,23 @@ object Codpiece {
     val hashes = squares.map(x => if (value == 0) 0L else r.nextLong())
   }
 
+  val RookSeventhBonus = 50
+
+  def rookSeventh(rank: Int) = squares.map(getRank).map(squareRank => if (squareRank == rank) RookSeventhBonus else 0).toArray
+
   val empty = Piece(" ", 0, 0, knightMoveGen, flat)
 
   val wPawn = Piece("P", 1, 100, whitePawnGen, centralize)
   val wKnight = Piece("N", 1, 325, knightMoveGen, centralize)
   val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize)
-  val wRook = Piece("R", 1, 500, rookMoveGen, centralize)
+  val wRook = Piece("R", 1, 500, rookMoveGen, rookSeventh(1))
   val wQueen = Piece("Q", 1, 900, queenMoveGen, flat)
   val wKing = Piece("K", 1, 10000, kingMoveGen, negCentralize)
 
   val bPawn = Piece("p", -1, -100, blackPawnGen, negCentralize)
   val bKnight = Piece("n", -1, -325, knightMoveGen, negCentralize)
   val bBishop = Piece("b", -1, -350, bishopMoveGen, negCentralize)
-  val bRook = Piece("r", -1, -500, rookMoveGen, negCentralize)
+  val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6))
   val bQueen = Piece("q", -1, -900, queenMoveGen, flat)
   val bKing = Piece("k", -1, -10000, kingMoveGen, centralize)
 
