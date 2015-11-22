@@ -330,7 +330,7 @@ object Codpiece {
 
   def charToPiece(pStr: String): Option[Piece] = pieces.find(p => p.glyph == pStr)
 
-  def boardToString(squares: Array[String]) = {
+  def boardToString(squares: IndexedSeq[String]) = {
     def sq(rank: Int = 0, file: Int = 0) = squares(rank * 8 + file)
     val sb = new StringBuilder()
     val part = "+---" * 8 + "+\n"
@@ -368,12 +368,12 @@ object Codpiece {
 
         if (removing == wPawn) {
           whitePawnCount = whitePawnCount - 1
-          whitePawnMap = whitePawnMap & bitPawn(square)
+          whitePawnMap = whitePawnMap & ~bitPawn(square)
         }
 
         if (removing == bPawn) {
           blackPawnCount = blackPawnCount - 1
-          blackPawnMap = blackPawnMap & bitPawn(square)
+          blackPawnMap = blackPawnMap & ~bitPawn(square)
         }
 
         material -= removing.value
@@ -483,7 +483,7 @@ object Codpiece {
 
   def bitPawn(square: Int) = 1L << square
 
-  val pawnColumn = (a7 to a2 by 8).map(bitPawn).reduce(_ | _)
+  val pawnColumn = (a8 to a1 by 8).map(bitPawn).reduce(_ | _)
 
   def pawnTrace(sqaure: Int, direction: Int): Long = {
     val nextSquare = sqaure + direction * 8
@@ -498,6 +498,7 @@ object Codpiece {
 
   val whitePassedPawnMasks = squares.map(pawnMask(-1) _)
   val blackPassedPawnMasks = squares.map(pawnMask(1) _)
+  val (closed, semiOpen, open) = (1, 2, 3)
 
   case class PawnEval(val board: Board) {
     var timesUsed = 0
@@ -506,11 +507,28 @@ object Codpiece {
 
     def inc = timesUsed = timesUsed + 1
 
-    def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn >> col)
+
+    private def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn << col)
+
+    def whitePawnsInColumn(col: Int) = pawnsInColumn(board.whitePawnMap, col)
+
+    def blackPawnsInColumn(col: Int) = pawnsInColumn(board.blackPawnMap, col)
+
+    def fileState(file: Int, myMap: Long, theirMap: Long) = {
+      if (pawnsInColumn(myMap, file) != 0) closed
+      else if (pawnsInColumn(theirMap, file) != 0) semiOpen
+      else open
+    }
+
+    def whiteFileState(file: Int) = fileState(file, board.whitePawnMap, board.blackPawnMap)
+
+    def blackFileState(file: Int) = fileState(file, board.blackPawnMap, board.whitePawnMap)
 
     def whitePawnPassedAt(sq: Int): Boolean = (whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L
 
     def blackPawnPassedAt(sq: Int): Boolean = (blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L
+
+    //def whiteFileState
   }
 
   val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()

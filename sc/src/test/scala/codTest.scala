@@ -298,6 +298,42 @@ class CodpieceTest extends FlatSpec with Matchers {
     play(b, new Move(e2, e6)).lastCaptureAt shouldBe -1
   }
 
+  def longToArray(l: Long) = squares.map(sq => if (((1L << sq) & l) != 0) 1 else 0)
+
+  def countBits(l: Long) = longToArray(l).sum
+
+  def printBitBoard(l: Long) = println(boardToString(longToArray(l).map(s => s.toString)))
+
+  "basic pawn counting, etc" should "be accurate" in {
+    val pe = PawnEval(startBoard)
+
+    for (f <- 0 to 7) {
+      assert(countBits(pe.whitePawnsInColumn(f)) == 1)
+      assert(countBits(pe.blackPawnsInColumn(f)) == 1)
+    }
+
+    val board2 = play(play(startBoard, Move(g2, f3)), Move(b7, c6))
+
+    val pe2 = PawnEval(board2)
+
+    pe2.whitePawnsInColumn(6) shouldBe 0
+    pe2.blackPawnsInColumn(1) shouldBe 0
+
+    assert(pe2.whitePawnsInColumn(1) != 0)
+    assert(pe2.blackPawnsInColumn(1) == 0)
+
+    pe2.blackFileState(1) shouldBe semiOpen
+    pe2.blackFileState(2) shouldBe closed
+
+    pe2.whiteFileState(6) shouldBe semiOpen
+    pe2.whiteFileState(5) shouldBe closed
+
+    val board3 = play(play(board2, Move(g7, f6)), Move(b2, c3))
+    val pe3 = PawnEval(board3)
+    pe3.whiteFileState(6) shouldBe open
+    pe3.blackFileState(1) shouldBe open
+  }
+
   "passed pawn tests" should "be correct" in {
     val pe = PawnEval(startBoard)
 
@@ -396,8 +432,13 @@ class CodpieceTest extends FlatSpec with Matchers {
     board.blackMaterial shouldBe blackMaterial
     board.hash shouldBe hash
     board.pawnHash shouldBe pawnHash
-    //println(board)
     board.simpleEval shouldBe completeEval(board)
+
+    board.blackPawnCount shouldBe blackPawnCount
+    board.whitePawnCount shouldBe whitePawnCount
+
+    board.blackPawnMap shouldBe blackPawnMap
+    board.whitePawnMap shouldBe whitePawnMap
   }
 
   def perft(implicit b: Board, depth: Int): Int = {
@@ -425,7 +466,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(fpb, 1) shouldBe 24
     perft(fpb, 2) shouldBe 496
     perft(fpb, 3) shouldBe 9483
-    perft(fpb, 4) shouldBe 182838
+    //perft(fpb, 4) shouldBe 182838
     //perft(fpb, 5) shouldBe 3605103
 
     val b = startBoard
@@ -433,7 +474,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(b, 1) shouldBe 20
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
-    perft(b, 4) shouldBe 197281 //shows king evading capture
+    //perft(b, 4) shouldBe 197281 //shows king evading capture
     //perft(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
