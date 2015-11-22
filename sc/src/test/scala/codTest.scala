@@ -359,6 +359,12 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   }
 
+
+  "passed pawn bonuses" should "work" in {
+    val b = startBoard.makeChild()
+    println(boardToString(whitePassedPawnBonus.map(i => i.toString)))
+  }
+
   "rooks" should "like the seventh rank and open files" in {
     wRook.simpleEval(e2) shouldBe 0
     wRook.simpleEval(a5) shouldBe 0

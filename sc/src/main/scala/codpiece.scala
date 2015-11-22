@@ -292,11 +292,15 @@ object Codpiece {
     3, 5, 10, 15, 15, 10, 5, 3,
     0, 3, 5, 10, 10, 5, 3, 0)
 
+  val blackPassedPawnBonus = squares.map(sq => if (sq <= h8 || sq >= a1) 0 else (2 << (getRank(sq) + 2))).toArray
+  val whitePassedPawnBonus = blackPassedPawnBonus.reverse
+
   val negCentralize = centralize.map(sq => -sq)
   val flat = centralize.map(sq => 0)
 
   //basic piece definitions
-  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move], simpleEval: Array[Int]) {
+  case class Piece(glyph: String, side: Int, value: Int, movegen: (Board, Int, Int) => Seq[Move],
+                   simpleEval: Array[Int], slowEval: (Int, Board, PawnEval) => Int) {
     val hashes = squares.map(x => if (value == 0) 0L else r.nextLong())
   }
 
@@ -304,21 +308,41 @@ object Codpiece {
 
   def rookSeventh(rank: Int) = squares.map(getRank).map(squareRank => if (squareRank == rank) RookSeventhBonus else 0).toArray
 
-  val empty = Piece(" ", 0, 0, knightMoveGen, flat)
+  //TODO: fill these in and we're about done
+  def dummySlowEval(sq: Int, b: Board, pe: PawnEval) = 0
 
-  val wPawn = Piece("P", 1, 100, whitePawnGen, centralize)
-  val wKnight = Piece("N", 1, 325, knightMoveGen, centralize)
-  val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize)
-  val wRook = Piece("R", 1, 500, rookMoveGen, rookSeventh(1))
-  val wQueen = Piece("Q", 1, 900, queenMoveGen, flat)
-  val wKing = Piece("K", 1, 10000, kingMoveGen, negCentralize)
+  def onWhiteOpenFile(sq: Int, b: Board, pe: PawnEval) = 0
 
-  val bPawn = Piece("p", -1, -100, blackPawnGen, negCentralize)
-  val bKnight = Piece("n", -1, -325, knightMoveGen, negCentralize)
-  val bBishop = Piece("b", -1, -350, bishopMoveGen, negCentralize)
-  val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6))
-  val bQueen = Piece("q", -1, -900, queenMoveGen, flat)
-  val bKing = Piece("k", -1, -10000, kingMoveGen, centralize)
+  def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0
+
+  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+
+  def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+
+  def onBlackOpenFile(sq: Int, b: Board, pe: PawnEval) = 0
+
+  def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = 0
+
+  def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+
+  //distance to king
+  def blackKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //distance to king
+
+  val empty = Piece(" ", 0, 0, knightMoveGen, flat, dummySlowEval)
+
+  val wPawn = Piece("P", 1, 100, whitePawnGen, centralize, whitePawnSlowEval)
+  val wKnight = Piece("N", 1, 325, knightMoveGen, centralize, whiteKnightSlowEval)
+  val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize, dummySlowEval)
+  val wRook = Piece("R", 1, 500, rookMoveGen, rookSeventh(1), onWhiteOpenFile)
+  val wQueen = Piece("Q", 1, 900, queenMoveGen, flat, dummySlowEval)
+  val wKing = Piece("K", 1, 10000, kingMoveGen, flat, whiteKingSafety)
+
+  val bPawn = Piece("p", -1, -100, blackPawnGen, negCentralize, blackPawnSlowEval)
+  val bKnight = Piece("n", -1, -325, knightMoveGen, negCentralize, blackKnightSlowEval)
+  val bBishop = Piece("b", -1, -350, bishopMoveGen, negCentralize, dummySlowEval)
+  val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6), onBlackOpenFile)
+  val bQueen = Piece("q", -1, -900, queenMoveGen, flat, dummySlowEval)
+  val bKing = Piece("k", -1, -10000, kingMoveGen, centralize, blackKingSafety)
 
   val pieces = List(
     empty,
@@ -547,20 +571,22 @@ object Codpiece {
     if (pawnEvalHash.contains(board.pawnHash) == false) {
       pawnEvalHash += (board.pawnHash -> PawnEval(board))
     }
-    pawnEvalHash.get(board.pawnHash).get.inc
-    0
+    val ph = pawnEvalHash.get(board.pawnHash).get
+    ph.inc
+    squares.map(sq => board(sq).slowEval(sq, board, ph)).sum
   }
 
   case class SearchTreeNode(board: Board) {
     lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
-    val fastEval = board.simpleEval * board.toMove
-    lazy val slowEval = slowBoardEval(board) * board.toMove
+    private val fastEval = board.simpleEval * board.toMove
+    private lazy val slowEval = slowBoardEval(board) * board.toMove
+
+    def eval = fastEval + slowEval
   }
 
-  //to do: use weak references, maybe keep the tree more in RAM 
+  //to do: use weak references, keep the tree more in RAM between collections
   case class Box(board: Board, move: Move) {
     private var _child: SearchTreeNode = null
-    private var _wc:WeakReference[SearchTreeNode] = null
 
     def child = {
       if (_child == null) _child = SearchTreeNode(play(board, move))
@@ -586,10 +612,10 @@ object Codpiece {
 
 
     if (depth <= 0 && node.board.lastCaptureAt == -1) {
-      return (node.fastEval, Nil)
+      return (node.eval, Nil)
     }
 
-    var bestValue = if (depth > 0) Int.MinValue else node.fastEval
+    var bestValue = if (depth > 0) Int.MinValue else node.eval
     var bestLine: List[Move] = Nil
 
     var children = node.boxes
