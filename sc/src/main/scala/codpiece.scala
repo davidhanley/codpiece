@@ -2,6 +2,7 @@
 
 import scala.collection.{SortedSet, immutable}
 import scala.collection.immutable.HashMap
+import scala.ref.WeakReference
 import scala.util._
 import scala.util.control.Breaks._
 
@@ -485,8 +486,8 @@ object Codpiece {
 
   val pawnColumn = (a8 to a1 by 8).map(bitPawn).reduce(_ | _)
 
-  def pawnTrace(sqaure: Int, direction: Int): Long = {
-    val nextSquare = sqaure + direction * 8
+  def pawnTrace(square: Int, direction: Int): Long = {
+    val nextSquare = square + direction * 8
     if (nextSquare > h8 && nextSquare < a1) (bitPawn(nextSquare) | pawnTrace(nextSquare, direction)) else 0L
   }
 
@@ -553,22 +554,20 @@ object Codpiece {
   case class SearchTreeNode(board: Board) {
     lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
     val fastEval = board.simpleEval * board.toMove
-    val slowEval = slowBoardEval(board) * board.toMove
+    lazy val slowEval = slowBoardEval(board) * board.toMove
   }
 
+  //to do: use weak references, maybe keep the tree more in RAM 
   case class Box(board: Board, move: Move) {
     private var _child: SearchTreeNode = null
+    private var _wc:WeakReference[SearchTreeNode] = null
 
     def child = {
-      if (_child == null) _child = SearchTreeNode(play(board, move));
+      if (_child == null) _child = SearchTreeNode(play(board, move))
       _child
     }
 
-    def clear = {
-      if (_child != null) {
-        /*print("*");*/ _child = null
-      }
-    }
+    def clear = _child = null
   }
 
   case class Stats(var nodes: Int = 0, var quiesces: Int = 0) {
