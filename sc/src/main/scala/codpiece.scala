@@ -1,7 +1,7 @@
 
 
 import scala.collection.{SortedSet, immutable}
-import scala.collection.immutable.HashMap
+import scala.collection.mutable.HashMap
 import scala.ref.WeakReference
 import scala.util._
 import scala.util.control.Breaks._
@@ -442,6 +442,15 @@ object Codpiece {
         whiteKingAt, blackKingAt, -1, simpleEval,
         whitePawnMap, blackPawnMap, whitePawnCount, blackPawnCount)
     }
+
+    override def hashCode():Int = hash.toInt
+
+    override def equals( o:Any ):Boolean = o match {
+        case b2: Board => (hash == b2.hash) && (toMove == b2.toMove)// && (squares == b2.squares)
+        case _ => false
+      }
+
+
   }
 
 
@@ -475,11 +484,17 @@ object Codpiece {
 
   val startBoard = fromFEN(startFEN)
 
-  def play(board: Board, move: Move) = {
+  val boardHash = scala.collection.mutable.WeakHashMap[Board,Board]()
+
+  def play(board: Board, move: Move):Board = {
     val newBoard = board.makeChild()
     if (board(move.to) != empty)
       newBoard.lastCaptureAt = move.to
     move.play(newBoard)
+    if ( boardHash.contains(newBoard) == true ) {
+      return boardHash.get(newBoard).get
+    }
+    boardHash.put(newBoard,newBoard)
     newBoard
   }
 
@@ -685,6 +700,7 @@ object Codpiece {
       println(curr)
       ageAndClearPawnHash
       println("Pawn Hash size:" + pawnEvalHash.size)
+      println("Hash size:" + boardHash.size)
       println(moveGen(curr))
       System.gc()
       val mv = getEnteredMove(curr)
