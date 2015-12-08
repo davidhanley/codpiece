@@ -443,12 +443,12 @@ object Codpiece {
         whitePawnMap, blackPawnMap, whitePawnCount, blackPawnCount)
     }
 
-    override def hashCode():Int = hash.toInt
+    override def hashCode(): Int = hash.toInt
 
-    override def equals( o:Any ):Boolean = o match {
-        case b2: Board => (hash == b2.hash) && (toMove == b2.toMove)// && (squares == b2.squares)
-        case _ => false
-      }
+    override def equals(o: Any): Boolean = o match {
+      case b2: Board => (hash == b2.hash) && (toMove == b2.toMove) // && (squares == b2.squares)
+      case _ => false
+    }
 
 
   }
@@ -484,17 +484,17 @@ object Codpiece {
 
   val startBoard = fromFEN(startFEN)
 
-  val boardHash = scala.collection.mutable.WeakHashMap[Board,Board]()
+  val boardHash = scala.collection.mutable.WeakHashMap[Board, Board]()
 
-  def play(board: Board, move: Move):Board = {
+  def play(board: Board, move: Move): Board = {
     val newBoard = board.makeChild()
     if (board(move.to) != empty)
       newBoard.lastCaptureAt = move.to
     move.play(newBoard)
-    if ( boardHash.contains(newBoard) == true ) {
+    if (boardHash.contains(newBoard) == true) {
       return boardHash.get(newBoard).get
     }
-    boardHash.put(newBoard,newBoard)
+    boardHash.put(newBoard, newBoard)
     newBoard
   }
 
@@ -592,7 +592,7 @@ object Codpiece {
   }
 
   case class SearchTreeNode(board: Board) {
-    lazy val boxes = moveGen(board).map(m => Box(board, m)).toArray
+    lazy val boxes = moveGen(board).map(m => Box(board, m)).toBuffer
     private val fastEval = board.simpleEval * board.toMove
     private lazy val slowEval = slowBoardEval(board) * board.toMove
 
@@ -608,11 +608,19 @@ object Codpiece {
       _child
     }
 
-    def clear = _child = null
+    //def clear = _child = null
   }
 
-  case class Stats(var nodes: Int = 0, var quiesces: Int = 0) {
-    val start = System.currentTimeMillis()
+  object Stats {
+    var nodes: Int = 0
+    var quiesces: Int = 0
+    var start: Long = 0
+
+    def init = {
+      start = System.currentTimeMillis()
+      nodes = 0
+      quiesces = 0
+    }
 
     def report() = {
       val end = System.currentTimeMillis()
@@ -621,9 +629,9 @@ object Codpiece {
     }
   }
 
-  def negamax(node: SearchTreeNode, depth: Int, _alpha: Int, beta: Int)(implicit stats: Stats): (Int, List[Move]) = {
+  def negamax(node: SearchTreeNode, depth: Int, _alpha: Int, beta: Int): (Int, List[Move]) = {
     var alpha = _alpha
-    stats.nodes = stats.nodes + 1
+    Stats.nodes = Stats.nodes + 1
 
 
     if (depth <= 0 && node.board.lastCaptureAt == -1) {
@@ -635,30 +643,44 @@ object Codpiece {
 
     var children = node.boxes
 
-    if (depth <= 0) stats.quiesces = stats.quiesces + 1
+    if (depth <= 0) Stats.quiesces = Stats.quiesces + 1
 
     var moveNum: Int = 0
     while (alpha < beta && moveNum < children.length) {
       val child = children(moveNum)
-      if (depth > 0 || child.move.to == node.board.lastCaptureAt) {
-        val (childVal, _childLine) = negamax(child.child, depth - 1, -beta, -alpha)
-        val nodeScore = -childVal
-        if (nodeScore > bestValue) {
-          bestValue = nodeScore
-          bestLine = child.move :: _childLine
-          for (i <- moveNum to 1 by -1) {
-            val c = children(i); children(i) = children(i - 1); children(i - 1) = c
-          }
-        }
-        alpha = Math.max(alpha, nodeScore)
+      if (canCaptureKing(child.board)) {
+        children.remove(moveNum) // remove moves that allow me to be mated
       }
-      moveNum = moveNum + 1
+      else {
+        if (depth > 0 || child.move.to == node.board.lastCaptureAt) {
+          val (childVal, _childLine) = negamax(child.child, depth - 1, -beta, -alpha)
+          val nodeScore = -childVal
+          if (nodeScore > bestValue) {
+            bestValue = nodeScore
+            bestLine = child.move :: _childLine
+            for (i <- moveNum to 1 by -1) {
+              val c = children(i); children(i) = children(i - 1); children(i - 1) = c
+            }
+          }
+          alpha = Math.max(alpha, nodeScore)
+        }
+        moveNum = moveNum + 1
+      }
     }
-    moveNum = Math.min(moveNum, 5)
+
+    if (bestValue < -999000) bestValue = bestValue + 1
+    if (bestValue > 999000) bestValue = bestValue - 1
+
+    if (children.length == 0) {
+      bestValue = if (kingToMoveInCheck(node.board) == true) -999999 else 0
+    }
+
+    //clean some tree
+    /*moveNum = Math.min(moveNum, 5)
     while (moveNum < children.length) {
       children(moveNum).clear
       moveNum = moveNum + 1
-    }
+    }*/
 
     return (bestValue, bestLine)
   }
@@ -666,7 +688,7 @@ object Codpiece {
 
   def search(curr: Board, maxDepth: Int) = {
     val tree = SearchTreeNode(curr)
-    implicit val s = Stats()
+    Stats.start
     var score = 0
     var line: List[Move] = Nil
     for (i <- 1 to maxDepth) {
@@ -689,7 +711,7 @@ object Codpiece {
       }
       println("Computer chose " + line + " with a score of " + score)
     }
-    s.report()
+    Stats.report()
 
     play(curr, line(0))
   }
@@ -701,6 +723,7 @@ object Codpiece {
       ageAndClearPawnHash
       println("Pawn Hash size:" + pawnEvalHash.size)
       println("Hash size:" + boardHash.size)
+      boardHash.empty
       println(moveGen(curr))
       System.gc()
       val mv = getEnteredMove(curr)
@@ -708,7 +731,7 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          curr = search(curr, 6)
+          curr = search(curr, 4)
 
         case None =>
 
