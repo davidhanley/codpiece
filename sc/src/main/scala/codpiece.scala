@@ -1,5 +1,7 @@
 
 
+import com.sun.xml.internal.bind.v2.TODO
+
 import scala.collection.{SortedSet, immutable}
 import scala.collection.mutable.HashMap
 import scala.ref.WeakReference
@@ -309,21 +311,27 @@ object Codpiece {
   def rookSeventh(rank: Int) = squares.map(getRank).map(squareRank => if (squareRank == rank) RookSeventhBonus else 0).toArray
 
   //TODO: fill these in and we're about done
-  def dummySlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+  def dummySlowEval(sq: Int, b: Board, pe: PawnEval) = 0 // TODO
 
-  def onWhiteOpenFile(sq: Int, b: Board, pe: PawnEval) = 0
+  def scoreFile( state:Int ) = state match {
+    case closed => 0
+    case open => 60
+    case semiOpen => 30
+  }
 
-  def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0
+  def scoreWhiteRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.whiteFileState(getFile(sq)))
 
-  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+  def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
-  def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
-  def onBlackOpenFile(sq: Int, b: Board, pe: PawnEval) = 0
+  def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
-  def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = 0
+  def scoreBlackRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.blackFileState(getFile(sq)))
 
-  def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0
+  def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+
+  def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
   //distance to king
   def blackKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //distance to king
@@ -333,14 +341,14 @@ object Codpiece {
   val wPawn = Piece("P", 1, 100, whitePawnGen, centralize, whitePawnSlowEval)
   val wKnight = Piece("N", 1, 325, knightMoveGen, centralize, whiteKnightSlowEval)
   val wBishop = Piece("B", 1, 350, bishopMoveGen, centralize, dummySlowEval)
-  val wRook = Piece("R", 1, 500, rookMoveGen, rookSeventh(1), onWhiteOpenFile)
+  val wRook = Piece("R", 1, 500, rookMoveGen, rookSeventh(1), scoreWhiteRook)
   val wQueen = Piece("Q", 1, 900, queenMoveGen, flat, dummySlowEval)
   val wKing = Piece("K", 1, 10000, kingMoveGen, flat, whiteKingSafety)
 
   val bPawn = Piece("p", -1, -100, blackPawnGen, negCentralize, blackPawnSlowEval)
   val bKnight = Piece("n", -1, -325, knightMoveGen, negCentralize, blackKnightSlowEval)
   val bBishop = Piece("b", -1, -350, bishopMoveGen, negCentralize, dummySlowEval)
-  val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6), onBlackOpenFile)
+  val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6), scoreBlackRook)
   val bQueen = Piece("q", -1, -900, queenMoveGen, flat, dummySlowEval)
   val bKing = Piece("k", -1, -10000, kingMoveGen, centralize, blackKingSafety)
 
@@ -449,10 +457,7 @@ object Codpiece {
       case b2: Board => (hash == b2.hash) && (toMove == b2.toMove) // && (squares == b2.squares)
       case _ => false
     }
-
-
   }
-
 
   def startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -517,9 +522,6 @@ object Codpiece {
     }
   }
 
-  //The following vals need to be computed once
-  val IsolatedPawnPenalty = 20
-  val doubledPawnPenalty = 20
 
   def bitPawn(square: Int) = 1L << square
 
@@ -538,14 +540,29 @@ object Codpiece {
 
   val whitePassedPawnMasks = squares.map(pawnMask(-1) _)
   val blackPassedPawnMasks = squares.map(pawnMask(1) _)
-  val (closed, semiOpen, open) = (1, 2, 3)
 
+  val (closed, semiOpen, open) = (1, 2, 3)
   case class PawnEval(val board: Board) {
+    //The following vals need to be computed once
+    val IsolatedPawnPenalty = 20
+    val doubledPawnPenalty = 20
+
+
     var timesUsed = 0
 
     def reset = timesUsed = 0
 
     def inc = timesUsed = timesUsed + 1
+
+    lazy val pawn_eval_score = {
+      squares.map(square =>
+        if (board(square) == wPawn) {
+          1 //TODO : compute something
+        }
+        else if (board(square) == bPawn) {
+          1 //TODO : compute something
+        } else 0).sum
+    }
 
 
     private def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn << col)
@@ -567,8 +584,6 @@ object Codpiece {
     def whitePawnPassedAt(sq: Int): Boolean = (whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L
 
     def blackPawnPassedAt(sq: Int): Boolean = (blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L
-
-    //def whiteFileState
   }
 
   val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()
@@ -588,6 +603,7 @@ object Codpiece {
     }
     val ph = pawnEvalHash.get(board.pawnHash).get
     ph.inc
+
     squares.map(sq => board(sq).slowEval(sq, board, ph)).sum
   }
 
@@ -601,14 +617,7 @@ object Codpiece {
 
   //to do: use weak references, keep the tree more in RAM between collections
   case class Box(board: Board, move: Move) {
-    private var _child: SearchTreeNode = null
-
-    def child = {
-      if (_child == null) _child = SearchTreeNode(play(board, move))
-      _child
-    }
-
-    //def clear = _child = null
+    lazy val child = SearchTreeNode(play(board, move))
   }
 
   object Stats {

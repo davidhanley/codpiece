@@ -359,7 +359,6 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   }
 
-
   "passed pawn bonuses" should "work" in {
     val b = startBoard.makeChild()
     println(boardToString(whitePassedPawnBonus.map(i => i.toString)))
@@ -375,6 +374,24 @@ class CodpieceTest extends FlatSpec with Matchers {
     bRook.simpleEval(a2) shouldBe RookSeventhBonus
     bRook.simpleEval(a5) shouldBe 0
     bRook.simpleEval(e7) shouldBe 0
+
+
+    val b = startBoard.makeChild()
+    val pe = PawnEval(b)
+
+    scoreWhiteRook(h1, b, pe) shouldBe 0
+    scoreBlackRook(h1, b, pe) shouldBe 0
+
+    b(h2) = Codpiece.empty
+
+    val pe2 = PawnEval(b)
+    scoreWhiteRook(h1, b, pe2) shouldBe 30
+    scoreBlackRook(h1, b, pe2) shouldBe 0
+
+    b(h7) = Codpiece.empty
+    val pe3 = PawnEval(b)
+    scoreWhiteRook(h1, b, pe3) shouldBe 60
+    scoreBlackRook(h1, b, pe3) shouldBe 60
   }
 
   def bench() = {
