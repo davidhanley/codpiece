@@ -341,15 +341,25 @@ class CodpieceTest extends FlatSpec with Matchers {
     pe.whitePawnPassedAt(a2) shouldBe false
     pe.whitePawnPassedAt(h2) shouldBe false
 
+    whitePassedPawnBonus(e2,pe) shouldBe 0
+
     pe.whitePawnPassedAt(e6) shouldBe false
 
     pe.whitePawnPassedAt(e7) shouldBe true
     pe.whitePawnPassedAt(a7) shouldBe true
     pe.whitePawnPassedAt(h7) shouldBe true
 
+    whitePassedPawnBonus(e7,pe) > 0 shouldBe true
+    whitePassedPawnBonus(a7,pe) > 0 shouldBe true
+    whitePassedPawnBonus(h7,pe) > 0 shouldBe true
+
     pe.blackPawnPassedAt(e2) shouldBe true
     pe.blackPawnPassedAt(a2) shouldBe true
     pe.blackPawnPassedAt(h2) shouldBe true
+
+    blackPassedPawnBonus(e2,pe) > 0 shouldBe true
+    blackPassedPawnBonus(a2,pe) > 0 shouldBe true
+    blackPassedPawnBonus(h2,pe) > 0 shouldBe true
 
     pe.blackPawnPassedAt(e7) shouldBe false
     pe.blackPawnPassedAt(a7) shouldBe false
@@ -359,9 +369,15 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   }
 
+
   "passed pawn bonuses" should "work" in {
     val b = startBoard.makeChild()
-    println(boardToString(whitePassedPawnBonus.map(i => i.toString)))
+    println(boardToString(whitePassedPawnBonuses.map(i => i.toString)))
+    println(boardToString(blackPassedPawnBonuses.map(i => i.toString)))
+  }
+
+  "sense isolated and doubled pawns" should "work" in {
+
   }
 
   "rooks" should "like the seventh rank and open files" in {

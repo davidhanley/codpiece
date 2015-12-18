@@ -294,8 +294,8 @@ object Codpiece {
     3, 5, 10, 15, 15, 10, 5, 3,
     0, 3, 5, 10, 10, 5, 3, 0)
 
-  val blackPassedPawnBonus = squares.map(sq => if (sq <= h8 || sq >= a1) 0 else (2 << (getRank(sq) + 2))).toArray
-  val whitePassedPawnBonus = blackPassedPawnBonus.reverse
+  val blackPassedPawnBonuses = squares.map(sq => if (sq <= h8 || sq >= a1) 0 else (2 << (getRank(sq) + 2))).toArray
+  val whitePassedPawnBonuses = blackPassedPawnBonuses.reverse
 
   val negCentralize = centralize.map(sq => -sq)
   val flat = centralize.map(sq => 0)
@@ -313,7 +313,7 @@ object Codpiece {
   //TODO: fill these in and we're about done
   def dummySlowEval(sq: Int, b: Board, pe: PawnEval) = 0 // TODO
 
-  def scoreFile( state:Int ) = state match {
+  def scoreFile(state: Int) = state match {
     case `closed` => 0
     case `open` => 60
     case `semiOpen` => 30
@@ -323,7 +323,18 @@ object Codpiece {
 
   def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
-  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+  def whitePassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.whitePawnPassedAt(sq)) whitePassedPawnBonuses(sq) else 0
+
+  def whiteIsolatedPenalty(sq: Int, pe: PawnEval) = 0
+
+  def whiteDoubledPenalty(sq: Int, pe: PawnEval) = 0
+
+  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = {
+    whitePassedPawnBonus(sq, pe) +
+      whiteIsolatedPenalty(sq, pe)
+  }
+
+  def blackPassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.blackPawnPassedAt(sq)) blackPassedPawnBonuses(sq) else 0
 
   def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
@@ -542,6 +553,7 @@ object Codpiece {
   val blackPassedPawnMasks = squares.map(pawnMask(1) _)
 
   val (closed, semiOpen, open) = (1, 2, 3)
+
   case class PawnEval(val board: Board) {
     //The following vals need to be computed once
     val IsolatedPawnPenalty = 20
@@ -554,7 +566,7 @@ object Codpiece {
 
     def inc = timesUsed = timesUsed + 1
 
-    lazy val pawn_eval_score = {
+    /*lazy val pawn_eval_score = {
       squares.map(square =>
         if (board(square) == wPawn) {
           1 //TODO : compute something
@@ -562,7 +574,7 @@ object Codpiece {
         else if (board(square) == bPawn) {
           1 //TODO : compute something
         } else 0).sum
-    }
+    }*/
 
 
     private def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn << col)
