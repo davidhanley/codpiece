@@ -314,9 +314,9 @@ object Codpiece {
   def dummySlowEval(sq: Int, b: Board, pe: PawnEval) = 0 // TODO
 
   def scoreFile( state:Int ) = state match {
-    case closed => 0
-    case open => 60
-    case semiOpen => 30
+    case `closed` => 0
+    case `open` => 60
+    case `semiOpen` => 30
   }
 
   def scoreWhiteRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.whiteFileState(getFile(sq)))
