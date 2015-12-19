@@ -536,7 +536,7 @@ object Codpiece {
 
   def bitPawn(square: Int) = 1L << square
 
-  val pawnColumn = (a8 to a1 by 8).map(bitPawn).reduce(_ | _)
+  val pawnColumn = (a7 to a2 by 8).map(bitPawn).reduce(_ | _)
 
   def pawnTrace(square: Int, direction: Int): Long = {
     val nextSquare = square + direction * 8
@@ -577,7 +577,9 @@ object Codpiece {
     }*/
 
 
-    private def pawnsInColumn(map: Long, col: Int) = map & (pawnColumn << col)
+    def pawnMask(file: Int) = pawnColumn << file
+
+    private def pawnsInColumn(map: Long, col: Int) = map & pawnMask(col)
 
     def whitePawnsInColumn(col: Int) = pawnsInColumn(board.whitePawnMap, col)
 
@@ -596,6 +598,30 @@ object Codpiece {
     def whitePawnPassedAt(sq: Int): Boolean = (whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L
 
     def blackPawnPassedAt(sq: Int): Boolean = (blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L
+
+    def countRowBits(bitBoard: Long) = {
+      var bb = bitBoard
+      var sum = 0
+      while (bb > 0) {
+        if ((bb & 0xff) != 0)
+          sum = sum + 1
+        bb = bb >> 8
+      }
+      sum
+    }
+
+    def isolatedPawnPunch(file: Int): Long = {
+      (if (file > 0) pawnMask(file - 1) else 0) |
+        (if (file < 7) pawnMask(file + 1) else 0)
+    }
+
+    def whitePawnIsolatedOn(file: Int) = (isolatedPawnPunch(file) & board.whitePawnMap) == 0
+
+    def whitePawnDoubledOn(file: Int) = countRowBits(board.whitePawnMap & pawnMask(file)) > 1
+
+    def blackPawnIsolatedOn(file: Int) = (isolatedPawnPunch(file) & board.blackPawnMap) == 0
+
+    def blackPawnDoubledOn(file: Int) = countRowBits(board.blackPawnMap & pawnMask(file)) > 1
   }
 
   val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()

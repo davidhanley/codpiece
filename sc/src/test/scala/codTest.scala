@@ -341,7 +341,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     pe.whitePawnPassedAt(a2) shouldBe false
     pe.whitePawnPassedAt(h2) shouldBe false
 
-    whitePassedPawnBonus(e2,pe) shouldBe 0
+    whitePassedPawnBonus(e2, pe) shouldBe 0
 
     pe.whitePawnPassedAt(e6) shouldBe false
 
@@ -349,17 +349,17 @@ class CodpieceTest extends FlatSpec with Matchers {
     pe.whitePawnPassedAt(a7) shouldBe true
     pe.whitePawnPassedAt(h7) shouldBe true
 
-    whitePassedPawnBonus(e7,pe) > 0 shouldBe true
-    whitePassedPawnBonus(a7,pe) > 0 shouldBe true
-    whitePassedPawnBonus(h7,pe) > 0 shouldBe true
+    whitePassedPawnBonus(e7, pe) > 0 shouldBe true
+    whitePassedPawnBonus(a7, pe) > 0 shouldBe true
+    whitePassedPawnBonus(h7, pe) > 0 shouldBe true
 
     pe.blackPawnPassedAt(e2) shouldBe true
     pe.blackPawnPassedAt(a2) shouldBe true
     pe.blackPawnPassedAt(h2) shouldBe true
 
-    blackPassedPawnBonus(e2,pe) > 0 shouldBe true
-    blackPassedPawnBonus(a2,pe) > 0 shouldBe true
-    blackPassedPawnBonus(h2,pe) > 0 shouldBe true
+    blackPassedPawnBonus(e2, pe) > 0 shouldBe true
+    blackPassedPawnBonus(a2, pe) > 0 shouldBe true
+    blackPassedPawnBonus(h2, pe) > 0 shouldBe true
 
     pe.blackPawnPassedAt(e7) shouldBe false
     pe.blackPawnPassedAt(a7) shouldBe false
@@ -372,11 +372,42 @@ class CodpieceTest extends FlatSpec with Matchers {
 
   "passed pawn bonuses" should "work" in {
     val b = startBoard.makeChild()
-    println(boardToString(whitePassedPawnBonuses.map(i => i.toString)))
-    println(boardToString(blackPassedPawnBonuses.map(i => i.toString)))
+    //println(boardToString(whitePassedPawnBonuses.map(i => i.toString)))
+    //println(boardToString(blackPassedPawnBonuses.map(i => i.toString)))
   }
 
+  def multiplay(b: Board, moves: (Int, Int)*) = moves.foldLeft(b)((b, tup) => play(b, Move(tup._1, tup._2)))
+
+  /*def printBitBoard(l:Long) = {
+    println(boardToString(squares.map(sq=>if ((l & (1 >>sq))!=0) "1" else "0")))
+  }*/
+
   "sense isolated and doubled pawns" should "work" in {
+    val b = startBoard.makeChild()
+    val pe = PawnEval(b)
+
+    //printBitBoard(pe.isolatedPawnPunch(0))
+
+    //for (a <- (0 to 7))
+    //  printBitBoard( pe.isolatedPawnPunch((a)))
+
+    for (a <- (0 to 7)) {
+      pe.whitePawnIsolatedOn(0) shouldBe false
+      pe.whitePawnDoubledOn(0) shouldBe false
+
+      pe.blackPawnIsolatedOn(0) shouldBe false
+      pe.blackPawnDoubledOn(0) shouldBe false
+    }
+
+    val b2 = play(b, Move(g2, f3))
+    val b3 = play(b2, Move(g7, f6))
+
+    val pe2 = PawnEval(b3)
+    pe2.whitePawnIsolatedOn(7) shouldBe true
+    pe2.blackPawnIsolatedOn(7) shouldBe true
+
+    pe2.whitePawnDoubledOn(5) shouldBe true
+    pe2.blackPawnDoubledOn(5) shouldBe true
 
   }
 
