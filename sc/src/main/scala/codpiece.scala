@@ -323,18 +323,19 @@ object Codpiece {
 
   def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
-  def whitePassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.whitePawnPassedAt(sq)) whitePassedPawnBonuses(sq) else 0
+  //def whitePassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.whitePawnPassedAt(sq)) whitePassedPawnBonuses(sq) else 0
+  //def whiteIsolatedPenalty(file: Int, pe: PawnEval) = if (pe.whitePawnIsolatedOn(file)) pe.IsolatedPawnPenalty else 0
 
-  def whiteIsolatedPenalty(sq: Int, pe: PawnEval) = 0
 
-  def whiteDoubledPenalty(sq: Int, pe: PawnEval) = 0
+  //def whiteDoubledPenalty(sq: Int, pe: PawnEval) = 0
 
-  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = {
-    whitePassedPawnBonus(sq, pe) +
-      whiteIsolatedPenalty(sq, pe)
+  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval):Int = {
+    pe.whitePawnPassedAt(sq) +
+      pe.whitePawnIsolatedOn(getFile(sq)) +
+      pe.whitePawnDoubledOn(getFile(sq))
   }
 
-  def blackPassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.blackPawnPassedAt(sq)) blackPassedPawnBonuses(sq) else 0
+  //def blackPassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.blackPawnPassedAt(sq)) blackPassedPawnBonuses(sq) else 0
 
   def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
 
@@ -556,8 +557,8 @@ object Codpiece {
 
   case class PawnEval(val board: Board) {
     //The following vals need to be computed once
-    val IsolatedPawnPenalty = 20
-    val doubledPawnPenalty = 20
+    val IsolatedPawnPenalty = -35
+    val DoubledPawnPenalty = -35
 
 
     var timesUsed = 0
@@ -595,9 +596,9 @@ object Codpiece {
 
     def blackFileState(file: Int) = fileState(file, board.blackPawnMap, board.whitePawnMap)
 
-    def whitePawnPassedAt(sq: Int): Boolean = (whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L
+    def whitePawnPassedAt(sq: Int) = if ((whitePassedPawnMasks(sq) & board.blackPawnMap) == 0L) whitePassedPawnBonuses(sq) else 0
 
-    def blackPawnPassedAt(sq: Int): Boolean = (blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L
+    def blackPawnPassedAt(sq: Int) = if ((blackPassedPawnMasks(sq) & board.whitePawnMap) == 0L) blackPassedPawnBonuses(sq) else 0
 
     def countRowBits(bitBoard: Long) = {
       var bb = bitBoard
@@ -615,13 +616,13 @@ object Codpiece {
         (if (file < 7) pawnMask(file + 1) else 0)
     }
 
-    def whitePawnIsolatedOn(file: Int) = (isolatedPawnPunch(file) & board.whitePawnMap) == 0
+    def whitePawnIsolatedOn(file: Int) = if ((isolatedPawnPunch(file) & board.whitePawnMap) == 0) IsolatedPawnPenalty else 0
 
-    def whitePawnDoubledOn(file: Int) = countRowBits(board.whitePawnMap & pawnMask(file)) > 1
+    def whitePawnDoubledOn(file: Int) = if (countRowBits(board.whitePawnMap & pawnMask(file)) > 1) DoubledPawnPenalty else 0
 
-    def blackPawnIsolatedOn(file: Int) = (isolatedPawnPunch(file) & board.blackPawnMap) == 0
+    def blackPawnIsolatedOn(file: Int) = if ((isolatedPawnPunch(file) & board.blackPawnMap) == 0) IsolatedPawnPenalty else 0
 
-    def blackPawnDoubledOn(file: Int) = countRowBits(board.blackPawnMap & pawnMask(file)) > 1
+    def blackPawnDoubledOn(file: Int) = if (countRowBits(board.blackPawnMap & pawnMask(file)) > 1) DoubledPawnPenalty else 0
   }
 
   val pawnEvalHash = scala.collection.mutable.HashMap[Long, PawnEval]()

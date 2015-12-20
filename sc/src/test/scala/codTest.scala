@@ -337,35 +337,35 @@ class CodpieceTest extends FlatSpec with Matchers {
   "passed pawn tests" should "be correct" in {
     val pe = PawnEval(startBoard)
 
-    pe.whitePawnPassedAt(e2) shouldBe false
-    pe.whitePawnPassedAt(a2) shouldBe false
-    pe.whitePawnPassedAt(h2) shouldBe false
+    pe.whitePawnPassedAt(e2) shouldBe 0
+    pe.whitePawnPassedAt(a2) shouldBe 0
+    pe.whitePawnPassedAt(h2) shouldBe 0
 
-    whitePassedPawnBonus(e2, pe) shouldBe 0
+    pe.whitePawnPassedAt(e2) shouldBe 0
 
-    pe.whitePawnPassedAt(e6) shouldBe false
+    pe.whitePawnPassedAt(e6) shouldBe 0
 
-    pe.whitePawnPassedAt(e7) shouldBe true
-    pe.whitePawnPassedAt(a7) shouldBe true
-    pe.whitePawnPassedAt(h7) shouldBe true
+    pe.whitePawnPassedAt(e7)>0 shouldBe true
+    pe.whitePawnPassedAt(a7)>0 shouldBe true
+    pe.whitePawnPassedAt(h7)>0 shouldBe true
 
-    whitePassedPawnBonus(e7, pe) > 0 shouldBe true
-    whitePassedPawnBonus(a7, pe) > 0 shouldBe true
-    whitePassedPawnBonus(h7, pe) > 0 shouldBe true
+    pe.whitePawnPassedAt(e7) > 0 shouldBe true
+    pe.whitePawnPassedAt(a7) > 0 shouldBe true
+    pe.whitePawnPassedAt(h7) > 0 shouldBe true
 
-    pe.blackPawnPassedAt(e2) shouldBe true
-    pe.blackPawnPassedAt(a2) shouldBe true
-    pe.blackPawnPassedAt(h2) shouldBe true
+    pe.blackPawnPassedAt(e2)>0 shouldBe true
+    pe.blackPawnPassedAt(a2)>0 shouldBe true
+    pe.blackPawnPassedAt(h2)>0 shouldBe true
 
-    blackPassedPawnBonus(e2, pe) > 0 shouldBe true
-    blackPassedPawnBonus(a2, pe) > 0 shouldBe true
-    blackPassedPawnBonus(h2, pe) > 0 shouldBe true
+    pe.whitePawnPassedAt(e2) shouldBe 0
+    pe.whitePawnPassedAt(a2) shouldBe 0
+    pe.whitePawnPassedAt(h2) shouldBe 0
 
-    pe.blackPawnPassedAt(e7) shouldBe false
-    pe.blackPawnPassedAt(a7) shouldBe false
-    pe.blackPawnPassedAt(h7) shouldBe false
+    pe.blackPawnPassedAt(e7) shouldBe 0
+    pe.blackPawnPassedAt(a7) shouldBe 0
+    pe.blackPawnPassedAt(h7) shouldBe 0
 
-    pe.blackPawnPassedAt(e6) shouldBe false
+    pe.blackPawnPassedAt(e6) shouldBe 0
 
   }
 
@@ -392,22 +392,21 @@ class CodpieceTest extends FlatSpec with Matchers {
     //  printBitBoard( pe.isolatedPawnPunch((a)))
 
     for (a <- (0 to 7)) {
-      pe.whitePawnIsolatedOn(0) shouldBe false
-      pe.whitePawnDoubledOn(0) shouldBe false
+      pe.whitePawnIsolatedOn(0) shouldBe 0
+      pe.whitePawnDoubledOn(0) shouldBe 0
 
-      pe.blackPawnIsolatedOn(0) shouldBe false
-      pe.blackPawnDoubledOn(0) shouldBe false
+      pe.blackPawnIsolatedOn(0) shouldBe 0
+      pe.blackPawnDoubledOn(0) shouldBe 0
     }
 
-    val b2 = play(b, Move(g2, f3))
-    val b3 = play(b2, Move(g7, f6))
+    val b3 = multiplay(b, (g2,f3) , (g7, f6))
 
     val pe2 = PawnEval(b3)
-    pe2.whitePawnIsolatedOn(7) shouldBe true
-    pe2.blackPawnIsolatedOn(7) shouldBe true
+    pe2.whitePawnIsolatedOn(7)<0 shouldBe true
+    pe2.blackPawnIsolatedOn(7)<0 shouldBe true
 
-    pe2.whitePawnDoubledOn(5) shouldBe true
-    pe2.blackPawnDoubledOn(5) shouldBe true
+    pe2.whitePawnDoubledOn(5)<0 shouldBe true
+    pe2.blackPawnDoubledOn(5)<0 shouldBe true
 
   }
 
