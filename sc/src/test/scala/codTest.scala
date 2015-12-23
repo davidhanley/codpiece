@@ -345,17 +345,17 @@ class CodpieceTest extends FlatSpec with Matchers {
 
     pe.whitePawnPassedAt(e6) shouldBe 0
 
-    pe.whitePawnPassedAt(e7)>0 shouldBe true
-    pe.whitePawnPassedAt(a7)>0 shouldBe true
-    pe.whitePawnPassedAt(h7)>0 shouldBe true
+    pe.whitePawnPassedAt(e7) > 0 shouldBe true
+    pe.whitePawnPassedAt(a7) > 0 shouldBe true
+    pe.whitePawnPassedAt(h7) > 0 shouldBe true
 
     pe.whitePawnPassedAt(e7) > 0 shouldBe true
     pe.whitePawnPassedAt(a7) > 0 shouldBe true
     pe.whitePawnPassedAt(h7) > 0 shouldBe true
 
-    pe.blackPawnPassedAt(e2)>0 shouldBe true
-    pe.blackPawnPassedAt(a2)>0 shouldBe true
-    pe.blackPawnPassedAt(h2)>0 shouldBe true
+    pe.blackPawnPassedAt(e2) > 0 shouldBe true
+    pe.blackPawnPassedAt(a2) > 0 shouldBe true
+    pe.blackPawnPassedAt(h2) > 0 shouldBe true
 
     pe.whitePawnPassedAt(e2) shouldBe 0
     pe.whitePawnPassedAt(a2) shouldBe 0
@@ -399,14 +399,14 @@ class CodpieceTest extends FlatSpec with Matchers {
       pe.blackPawnDoubledOn(0) shouldBe 0
     }
 
-    val b3 = multiplay(b, (g2,f3) , (g7, f6))
+    val b3 = multiplay(b, (g2, f3), (g7, f6))
 
     val pe2 = PawnEval(b3)
-    pe2.whitePawnIsolatedOn(7)<0 shouldBe true
-    pe2.blackPawnIsolatedOn(7)<0 shouldBe true
+    pe2.whitePawnIsolatedOn(7) < 0 shouldBe true
+    pe2.blackPawnIsolatedOn(7) < 0 shouldBe true
 
-    pe2.whitePawnDoubledOn(5)<0 shouldBe true
-    pe2.blackPawnDoubledOn(5)<0 shouldBe true
+    pe2.whitePawnDoubledOn(5) < 0 shouldBe true
+    pe2.blackPawnDoubledOn(5) < 0 shouldBe true
 
   }
 
@@ -511,18 +511,54 @@ class CodpieceTest extends FlatSpec with Matchers {
   }
 
   def perft(implicit b: Board, depth: Int): Int = {
-    board_assertions(b)
+    //board_assertions(b)
     if (depth == 0) 1
     else {
       val moves = moveGen(b)
+      val moves2 = moveGen(b)
       moves.map(m => {
         val b2 = play(b, m)
         if (canCaptureKing(b2))
           0
         else perft(play(b, m), depth - 1)
-      }).reduce(_ + _)
+      }).sum
     }
   }
+
+  def ftime = System.currentTimeMillis() / 1000.0
+
+  def profile[R](repeat: Int)(code: => R) = {
+    (1 to 1000).foreach(i => code) // warmup
+    val start = System.nanoTime()
+    (1 to repeat).foreach(i => code)
+    1.0 / (((System.nanoTime - start) / repeat)/1000000000.0)
+  }
+
+  def bench_movegen = {
+    //start: 34568/sec
+    val kiwiBoard = Codpiece.fromFEN(kiwi)
+    println("Movegen time:" + (profile(100000) {
+      moveGen(kiwiBoard)
+    }))
+  }
+
+  def bench_play = {
+    //start 125297/sec
+    val kiwiBoard = Codpiece.fromFEN(kiwi)
+    val moves = moveGen(kiwiBoard)
+    println("play time:" + (profile(100000) {
+      for (move <- moves) play(kiwiBoard, move)
+    }))
+  }
+
+  def perft2(implicit b: Board, depth: Int): Int = {
+    val start = ftime
+    val count = perft(b, depth)
+    val end = ftime
+    println("perft seconds:" + (end - start))
+    count
+  }
+
 
   val findPromotionBugs = "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1"
 
@@ -535,7 +571,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(fpb, 1) shouldBe 24
     perft(fpb, 2) shouldBe 496
     perft(fpb, 3) shouldBe 9483
-    //perft(fpb, 4) shouldBe 182838
+    perft(fpb, 4) shouldBe 182838
     //perft(fpb, 5) shouldBe 3605103
 
     val b = startBoard
@@ -543,8 +579,8 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(b, 1) shouldBe 20
     perft(b, 2) shouldBe 400
     perft(b, 3) shouldBe 8902
-    //perft(b, 4) shouldBe 197281 //shows king evading capture
-    //perft(b, 5) shouldBe 4865609
+    perft(b, 4) shouldBe 197281 //shows king evading capture
+    //perft2(b, 5) shouldBe 4865609
     //perft(b, 6) shouldBe 119060324
 
     val kiwiBoard = Codpiece.fromFEN(kiwi)
@@ -560,5 +596,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     perft(pos5, 2) shouldBe 1486
     perft(pos5, 3) shouldBe 62379
 
+    bench_movegen
+    bench_play
   }
 }
