@@ -543,7 +543,7 @@ class CodpieceTest extends FlatSpec with Matchers {
   }
 
   def bench_play = {
-    //start 125297/sec
+    //start 91441/sec
     val kiwiBoard = Codpiece.fromFEN(kiwi)
     val moves = moveGen(kiwiBoard)
     println("play time:" + (profile(100000) {

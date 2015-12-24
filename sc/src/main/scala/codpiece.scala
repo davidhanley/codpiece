@@ -321,7 +321,16 @@ object Codpiece {
 
   def scoreWhiteRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.whiteFileState(getFile(sq)))
 
-  def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+
+
+  def kingSafety( sq:Int, otherMaterial: Int, pe:PawnEval ) = {
+    //distance to own pawns is always good
+
+  }
+
+  def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = {
+    kingSafety(sq,b.blackMaterial,pe)
+  }
 
   //def whitePassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.whitePawnPassedAt(sq)) whitePassedPawnBonuses(sq) else 0
   //def whiteIsolatedPenalty(file: Int, pe: PawnEval) = if (pe.whitePawnIsolatedOn(file)) pe.IsolatedPawnPenalty else 0
@@ -329,7 +338,7 @@ object Codpiece {
 
   //def whiteDoubledPenalty(sq: Int, pe: PawnEval) = 0
 
-  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval):Int = {
+  def whitePawnSlowEval(sq: Int, b: Board, pe: PawnEval) = {
     pe.whitePawnPassedAt(sq) +
       pe.whitePawnIsolatedOn(getFile(sq)) +
       pe.whitePawnDoubledOn(getFile(sq))
@@ -337,13 +346,19 @@ object Codpiece {
 
   //def blackPassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.blackPawnPassedAt(sq)) blackPassedPawnBonuses(sq) else 0
 
-  def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+  def blackPawnSlowEval(sq: Int, b: Board, pe: PawnEval) = {
+    pe.blackPawnPassedAt(sq) +
+      pe.blackPawnIsolatedOn(getFile(sq)) +
+      pe.blackPawnDoubledOn(getFile(sq))
+  }
 
   def scoreBlackRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.blackFileState(getFile(sq)))
 
-  def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+  def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = {
+    kingSafety(sq,b.whiteMaterial,pe)
+  }
 
-  def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO
+  def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO: king tropism?
 
   //distance to king
   def blackKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //distance to king
