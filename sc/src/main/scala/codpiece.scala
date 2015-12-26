@@ -321,15 +321,19 @@ object Codpiece {
 
   def scoreWhiteRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.whiteFileState(getFile(sq)))
 
+  def kingSafety(sq: Int, otherMaterial: Int, pe: PawnEval) = {
+    val armyStrength = otherMaterial / fullArmyValue
+    println("Army strength = " + armyStrength)
+    val neg = negCentralize(sq) * armyStrength * 7
+    val pos = centralize(sq) * (1.0 - armyStrength) * 7
+    println(s"neg:$neg, pos:$pos")
+    val kSafety = neg + pos
 
-
-  def kingSafety( sq:Int, otherMaterial: Int, pe:PawnEval ) = {
-    //distance to own pawns is always good
-
+    kSafety.toInt
   }
 
   def whiteKingSafety(sq: Int, b: Board, pe: PawnEval) = {
-    kingSafety(sq,b.blackMaterial,pe)
+    kingSafety(sq, b.blackNonPawnMaterial, pe)
   }
 
   //def whitePassedPawnBonus(sq: Int, pe: PawnEval) = if (pe.whitePawnPassedAt(sq)) whitePassedPawnBonuses(sq) else 0
@@ -355,7 +359,7 @@ object Codpiece {
   def scoreBlackRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.blackFileState(getFile(sq)))
 
   def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = {
-    kingSafety(sq,b.whiteMaterial,pe)
+    kingSafety(sq, b.whiteNonPawnMaterial, pe)
   }
 
   def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO: king tropism?
@@ -378,6 +382,8 @@ object Codpiece {
   val bRook = Piece("r", -1, -500, rookMoveGen, rookSeventh(6), scoreBlackRook)
   val bQueen = Piece("q", -1, -900, queenMoveGen, flat, dummySlowEval)
   val bKing = Piece("k", -1, -10000, kingMoveGen, centralize, blackKingSafety)
+
+  val fullArmyValue = (wQueen.value + 2 * (wRook.value + wBishop.value + wKnight.value)).toFloat
 
   val pieces = List(
     empty,
@@ -418,6 +424,10 @@ object Codpiece {
                    var whitePawnCount: Int, var blackPawnCount: Int) {
 
     def apply(square: Int): Piece = squares(square)
+
+    def whiteNonPawnMaterial = whiteMaterial - 100 * whitePawnCount
+
+    def blackNonPawnMaterial = blackMaterial - 100 * blackPawnCount
 
     def update(square: Int, p: Piece) = {
       val removing = squares(square)
@@ -581,17 +591,6 @@ object Codpiece {
     def reset = timesUsed = 0
 
     def inc = timesUsed = timesUsed + 1
-
-    /*lazy val pawn_eval_score = {
-      squares.map(square =>
-        if (board(square) == wPawn) {
-          1 //TODO : compute something
-        }
-        else if (board(square) == bPawn) {
-          1 //TODO : compute something
-        } else 0).sum
-    }*/
-
 
     def pawnMask(file: Int) = pawnColumn << file
 

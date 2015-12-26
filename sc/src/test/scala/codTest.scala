@@ -440,6 +440,20 @@ class CodpieceTest extends FlatSpec with Matchers {
     scoreBlackRook(h1, b, pe3) shouldBe 60
   }
 
+  "king safety" should "behave" in {
+    val kingSafetyOpeningMap = squares.map( kingSafety(_, fullArmyValue.toInt, null) )
+    println( boardToString(kingSafetyOpeningMap.map(s=>s.toString)))
+
+    val kingSafetyEndingMap = squares.map( kingSafety(_, 600, null) )
+    println( boardToString(kingSafetyEndingMap.map(s=>s.toString)))
+
+    val kingSafetyMidMap = squares.map( kingSafety(_, fullArmyValue.toInt/2, null) )
+    println( boardToString(kingSafetyMidMap.map(s=>s.toString)))
+
+    //kingSafety(g1, fullArmyValue.toInt, null) shouldBe 50
+    //kingSafety(e4, fullArmyValue.toInt, null) shouldBe -150
+  }
+
   def bench() = {
     val b = startBoard
     val st = System.currentTimeMillis()
@@ -531,7 +545,7 @@ class CodpieceTest extends FlatSpec with Matchers {
     (1 to 1000).foreach(i => code) // warmup
     val start = System.nanoTime()
     (1 to repeat).foreach(i => code)
-    1.0 / (((System.nanoTime - start) / repeat)/1000000000.0)
+    1.0 / (((System.nanoTime - start) / repeat) / 1000000000.0)
   }
 
   def bench_movegen = {
