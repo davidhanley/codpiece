@@ -441,17 +441,30 @@ class CodpieceTest extends FlatSpec with Matchers {
   }
 
   "king safety" should "behave" in {
-    val kingSafetyOpeningMap = squares.map( kingSafety(_, fullArmyValue.toInt, null) )
-    println( boardToString(kingSafetyOpeningMap.map(s=>s.toString)))
+    val kingSafetyOpeningMap = squares.map(kingSafety(_, fullArmyValue.toInt, null))
+    println(boardToString(kingSafetyOpeningMap.map(s => s.toString)))
 
-    val kingSafetyEndingMap = squares.map( kingSafety(_, 600, null) )
-    println( boardToString(kingSafetyEndingMap.map(s=>s.toString)))
+    val kingSafetyEndingMap = squares.map(kingSafety(_, 600, null))
+    println(boardToString(kingSafetyEndingMap.map(s => s.toString)))
 
-    val kingSafetyMidMap = squares.map( kingSafety(_, fullArmyValue.toInt/2, null) )
-    println( boardToString(kingSafetyMidMap.map(s=>s.toString)))
+    val kingSafetyMidMap = squares.map(kingSafety(_, fullArmyValue.toInt / 2, null))
+    println(boardToString(kingSafetyMidMap.map(s => s.toString)))
 
     //kingSafety(g1, fullArmyValue.toInt, null) shouldBe 50
     //kingSafety(e4, fullArmyValue.toInt, null) shouldBe -150
+  }
+
+  //TODO: add tests to see if it plays reasonable moves
+
+  def searchTest(b: Board, depth: Int, moves: Move*): Boolean = {
+    val (score, move) = search(b, depth)
+    moves.contains(move)
+  }
+
+  "search" should "produce reasonable moves" in {
+    val b = startBoard.makeChild()
+
+    searchTest(b, 4, Move(e2, e4), Move(d2,d4)) shouldBe true
   }
 
   def bench() = {

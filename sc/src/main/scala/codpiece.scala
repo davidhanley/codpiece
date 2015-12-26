@@ -359,7 +359,7 @@ object Codpiece {
   def scoreBlackRook(sq: Int, b: Board, pe: PawnEval) = scoreFile(pe.blackFileState(getFile(sq)))
 
   def blackKingSafety(sq: Int, b: Board, pe: PawnEval) = {
-    kingSafety(sq, b.whiteNonPawnMaterial, pe)
+    -kingSafety(sq, b.whiteNonPawnMaterial, pe)
   }
 
   def whiteKnightSlowEval(sq: Int, b: Board, pe: PawnEval) = 0 //TODO: king tropism?
@@ -730,12 +730,12 @@ object Codpiece {
       }
     }
 
-    if (bestValue < -999000) bestValue = bestValue + 1
+    /*if (bestValue < -999000) bestValue = bestValue + 1
     if (bestValue > 999000) bestValue = bestValue - 1
 
     if (children.length == 0) {
       bestValue = if (kingToMoveInCheck(node.board) == true) -999999 else 0
-    }
+    }*/
 
     //clean some tree
     /*moveNum = Math.min(moveNum, 5)
@@ -761,21 +761,20 @@ object Codpiece {
         val guess = (low + high) / 2
         println(s"starting dept $i search with low: $low high:$high guess:$guess")
         val (wl, wh) = (guess - 2, guess + 2)
-        //println(s"Window: $wl,$wh")
+
         val (_score, _line) = negamax(tree, i, wl, wh)
         score = _score
         line = _line
-        //println( s"Final score = $score")
+
         if (score <= wl) high = guess
         else if (score >= wh) low = guess
         else exact = Some(score)
-        //println( "")
       }
       println("Computer chose " + line + " with a score of " + score)
     }
     Stats.report()
 
-    play(curr, line(0))
+    (curr, line(0))
   }
 
   def main() = {
@@ -793,7 +792,8 @@ object Codpiece {
         case Some(m) =>
           curr = play(curr, m)
           println(curr)
-          curr = search(curr, 4)
+          val (score, move) = search(curr, 4)
+          curr = play(curr, move)
 
         case None =>
 
